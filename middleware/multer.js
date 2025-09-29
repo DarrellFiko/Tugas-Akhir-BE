@@ -1,7 +1,7 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const { v4: uuidv4 } = require("uuid"); // tambahkan uuid
+const { v4: uuidv4 } = require("uuid");
 
 // ===================== PROFILE UPLOAD =====================
 const storageProfile = multer.diskStorage({
@@ -33,8 +33,10 @@ const fileFilterProfile = (req, file, cb) => {
   }
 };
 
-const uploadProfile = multer({ storage: storageProfile, fileFilter: fileFilterProfile });
-
+const uploadProfile = multer({
+  storage: storageProfile,
+  fileFilter: fileFilterProfile,
+});
 
 // ===================== PENGUMUMAN UPLOAD =====================
 const storagePengumuman = multer.diskStorage({
@@ -71,7 +73,6 @@ const uploadPengumuman = multer({
   fileFilter: fileFilterPengumuman,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
 });
-
 
 // ===================== EXPORT =====================
 module.exports = {

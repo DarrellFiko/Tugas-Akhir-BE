@@ -22,26 +22,10 @@ Pengumuman.init(
       type: DataTypes.STRING(255),
       allowNull: true,
     },
-    created_by: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: "users",
-        key: "id_user",
-      },
-    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-    },
-    updated_by: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: "users",
-        key: "id_user",
-      },
     },
     updated_at: {
       type: DataTypes.DATE,
@@ -59,11 +43,12 @@ Pengumuman.init(
     },
     id_kelas_tahun_ajaran: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      allowNull: true, // null = pengumuman dari Admin
       references: {
         model: "kelas_tahun_ajaran",
         key: "id_kelas_tahun_ajaran",
       },
+      comment: "Jika NULL berarti pengumuman dibuat oleh Admin",
     },
   },
   {

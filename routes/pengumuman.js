@@ -1,178 +1,202 @@
 const express = require("express");
 const router = express.Router();
-const { Op } = require("sequelize");
-
+const path = require("path");
+const fs = require("fs");
 const Pengumuman = require("../model/Pengumuman");
-const User = require("../model/User");
-const KelasTahunAjaran = require("../model/KelasTahunAjaran");
-
-const {
-  authenticateToken,
-  authorizeRole,
-} = require("../middleware/auth");
-
-// import upload khusus pengumuman
+const { authenticateToken, authorizeRole } = require("../middleware/auth");
 const { uploadPengumuman } = require("../middleware/multer");
 
-// ========================== CREATE PENGUMUMAN (Admin/Guru) ==========================
-router.post("/", authenticateToken, authorizeRole(["Admin", "Guru"]), uploadPengumuman.single("file"), async (req, res) => {
-  try {
-    const { judul, isi, id_kelas_tahun_ajaran } = req.body;
+// Helper buat generate URL file
+const getFileUrl = (req, filename) => {
+  if (!filename) return null;
+  return `${req.protocol}://${req.get("host")}/uploads/pengumuman/${filename}`;
+};
 
-    if (!judul) {
-      return res.status(400).send({ message: "Judul wajib diisi" });
+// ================== CREATE ==================
+router.post(
+  "/",
+  authenticateToken,
+  authorizeRole(["Admin", "Guru"]),
+  uploadPengumuman.single("file"),
+  async (req, res) => {
+    try {
+      const { judul, isi, id_kelas_tahun_ajaran } = req.body;
+
+      if (!judul) {
+        return res.status(400).send({ message: "Judul wajib diisi" });
+      }
+
+      const pengumuman = await Pengumuman.create({
+        judul,
+        isi,
+        file: req.file ? req.file.filename : null,
+        id_kelas_tahun_ajaran: id_kelas_tahun_ajaran || null,
+      });
+
+      return res.status(201).send({
+        message: "Pengumuman berhasil dibuat",
+        data: {
+          ...pengumuman.toJSON(),
+          file_url: getFileUrl(req, pengumuman.file),
+        },
+      });
+    } catch (err) {
+      return res
+        .status(500)
+        .send({ message: "Terjadi kesalahan", error: err.message });
     }
-
-    let fileUrl = null;
-    if (req.file) {
-      fileUrl = `${req.protocol}://${req.get("host")}/uploads/pengumuman/${req.file.filename}`;
-    }
-
-    const pengumuman = await Pengumuman.create({
-      judul,
-      isi,
-      file: fileUrl,
-      id_kelas_tahun_ajaran: id_kelas_tahun_ajaran || null,
-      created_by: req.user.id_user,
-      created_at: new Date(),
-      status: 1,
-    });
-
-    return res
-      .status(201)
-      .send({ message: "Pengumuman berhasil dibuat", pengumuman });
-  } catch (err) {
-    return res
-      .status(500)
-      .send({ message: "Terjadi kesalahan", error: err.message });
   }
-});
+);
 
-// ========================== GET ALL PENGUMUMAN ==========================
+// ================== GET ALL ==================
 router.get("/", authenticateToken, async (req, res) => {
   try {
+    const { id_kelas_tahun_ajaran } = req.query;
+
+    let whereClause = { deleted_at: null };
+
+    if (id_kelas_tahun_ajaran) {
+      whereClause.id_kelas_tahun_ajaran = id_kelas_tahun_ajaran;
+    } else {
+      whereClause.id_kelas_tahun_ajaran = null; // default admin
+    }
+
     const pengumuman = await Pengumuman.findAll({
-      where: { deleted_at: null },
-      include: [
-        { model: User, as: "creator", attributes: ["id_user", "nama", "role"] },
-        { model: User, as: "updater", attributes: ["id_user", "nama", "role"] },
-        {
-          model: KelasTahunAjaran,
-          as: "kelasTahunAjaran",
-        },
-      ],
+      where: whereClause,
       order: [["created_at", "DESC"]],
     });
 
-    return res.status(200).send({ message: "success", pengumuman });
+    const withFileUrl = pengumuman.map((p) => ({
+      ...p.toJSON(),
+      file_url: getFileUrl(req, p.file),
+    }));
+
+    return res.status(200).send({ message: "success", data: withFileUrl });
   } catch (err) {
-    return res
-      .status(500)
-      .send({ message: "Terjadi kesalahan", error: err.message });
+    return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
   }
 });
 
-// ========================== GET PENGUMUMAN BY ID ==========================
+// ================== GET BY ID ==================
 router.get("/:id_pengumuman", authenticateToken, async (req, res) => {
   try {
     const { id_pengumuman } = req.params;
+    const pengumuman = await Pengumuman.findByPk(id_pengumuman);
 
-    const pengumuman = await Pengumuman.findByPk(id_pengumuman, {
-      include: [
-        { model: User, as: "creator", attributes: ["id_user", "nama", "role"] },
-        { model: User, as: "updater", attributes: ["id_user", "nama", "role"] },
-        {
-          model: KelasTahunAjaran,
-          as: "kelasTahunAjaran",
+    if (!pengumuman || pengumuman.deleted_at) {
+      return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
+    }
+
+    return res.status(200).send({
+      message: "success",
+      data: {
+        ...pengumuman.toJSON(),
+        file_url: getFileUrl(req, pengumuman.file),
+      },
+    });
+  } catch (err) {
+    return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
+  }
+});
+
+// ================== UPDATE ==================
+router.put(
+  "/:id_pengumuman",
+  authenticateToken,
+  authorizeRole(["Admin", "Guru"]),
+  uploadPengumuman.single("file"),
+  async (req, res) => {
+    try {
+      const { id_pengumuman } = req.params;
+      const pengumuman = await Pengumuman.findByPk(id_pengumuman);
+
+      if (!pengumuman || pengumuman.deleted_at) {
+        return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
+      }
+
+      const updateData = {
+        judul: req.body.judul,
+        isi: req.body.isi,
+        updated_at: new Date(),
+      };
+
+      if (req.file) {
+        // hapus file lama kalau ada
+        if (pengumuman.file) {
+          const oldFilePath = path.join(
+            __dirname,
+            "../uploads/pengumuman",
+            pengumuman.file
+          );
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
+          }
+        }
+        updateData.file = req.file.filename;
+      }
+
+      await pengumuman.update(updateData);
+
+      return res.status(200).send({
+        message: "Pengumuman berhasil diupdate",
+        data: {
+          ...pengumuman.toJSON(),
+          file_url: getFileUrl(req, pengumuman.file),
         },
-      ],
-    });
-
-    if (!pengumuman || pengumuman.deleted_at) {
-      return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
-    }
-
-    return res.status(200).send({ message: "success", pengumuman });
-  } catch (err) {
-    return res
-      .status(500)
-      .send({ message: "Terjadi kesalahan", error: err.message });
-  }
-});
-
-// ========================== UPDATE PENGUMUMAN ==========================
-router.put("/:id_pengumuman", authenticateToken, authorizeRole(["Admin", "Guru"]), uploadPengumuman.single("file"), async (req, res) => {
-  try {
-    const { id_pengumuman } = req.params;
-    const pengumuman = await Pengumuman.findByPk(id_pengumuman);
-
-    if (!pengumuman || pengumuman.deleted_at) {
-      return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
-    }
-
-    // hanya creator atau admin yang bisa update
-    if (
-      req.user.role !== "Admin" &&
-      req.user.id_user !== pengumuman.created_by
-    ) {
+      });
+    } catch (err) {
       return res
-        .status(403)
-        .send({ message: "Tidak punya izin untuk update pengumuman ini" });
+        .status(500)
+        .send({ message: "Terjadi kesalahan", error: err.message });
     }
-
-    const updateData = {
-      ...req.body,
-      updated_by: req.user.id_user,
-      updated_at: new Date(),
-    };
-
-    if (req.file) {
-      updateData.file = `${req.protocol}://${req.get(
-        "host"
-      )}/uploads/pengumuman/${req.file.filename}`;
-    }
-
-    await pengumuman.update(updateData);
-
-    return res
-      .status(200)
-      .send({ message: "Pengumuman berhasil diupdate", pengumuman });
-  } catch (err) {
-    return res
-      .status(500)
-      .send({ message: "Terjadi kesalahan", error: err.message });
   }
-});
+);
 
-// ========================== DELETE (SOFT DELETE) PENGUMUMAN ==========================
-router.delete("/:id_pengumuman", authenticateToken, authorizeRole(["Admin", "Guru"]), async (req, res) => {
+// ================== DELETE (SOFT DELETE) ==================
+router.delete(
+  "/:id_pengumuman",
+  authenticateToken,
+  authorizeRole(["Admin", "Guru"]),
+  async (req, res) => {
+    try {
+      const { id_pengumuman } = req.params;
+      const pengumuman = await Pengumuman.findByPk(id_pengumuman);
+
+      if (!pengumuman || pengumuman.deleted_at) {
+        return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
+      }
+
+      await pengumuman.update({ deleted_at: new Date(), status: 0 });
+
+      return res
+        .status(200)
+        .send({ message: "Pengumuman berhasil dihapus (soft delete)" });
+    } catch (err) {
+      return res
+        .status(500)
+        .send({ message: "Terjadi kesalahan", error: err.message });
+    }
+  }
+);
+
+// ================== DOWNLOAD FILE ==================
+router.get("/download/:id_pengumuman", authenticateToken, async (req, res) => {
   try {
-    const { id_pengumuman } = req.params;
-    const pengumuman = await Pengumuman.findByPk(id_pengumuman);
+    const pengumuman = await Pengumuman.findByPk(req.params.id_pengumuman);
 
     if (!pengumuman || pengumuman.deleted_at) {
       return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
     }
-
-    // hanya creator atau admin yang bisa delete
-    if (
-      req.user.role !== "Admin" &&
-      req.user.id_user !== pengumuman.created_by
-    ) {
-      return res
-        .status(403)
-        .send({ message: "Tidak punya izin untuk menghapus pengumuman ini" });
+    if (!pengumuman.file) {
+      return res.status(404).send({ message: "File tidak tersedia" });
     }
 
-    await pengumuman.update({
-      deleted_at: new Date(),
-      status: 0,
-      updated_by: req.user.id_user,
-    });
-
-    return res
-      .status(200)
-      .send({ message: "Pengumuman berhasil dihapus (soft delete)" });
+    const filePath = path.join(
+      __dirname,
+      "../uploads/pengumuman",
+      pengumuman.file
+    );
+    return res.download(filePath, pengumuman.file);
   } catch (err) {
     return res
       .status(500)

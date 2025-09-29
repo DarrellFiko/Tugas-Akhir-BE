@@ -30,6 +30,7 @@ app.use("/api/jadwal-pelajaran", jadwalPelajaranRouter);
 
 // Static folder untuk upload file
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads/pengumuman", express.static(path.join(__dirname, "uploads/pengumuman")));
 
 // Port ambil dari .env, fallback ke 8080
 const PORT = process.env.PORT || 8080;

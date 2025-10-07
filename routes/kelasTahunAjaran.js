@@ -6,6 +6,7 @@ const TahunAjaran = require("../model/TahunAjaran");
 const Pelajaran = require("../model/Pelajaran");
 const User = require("../model/User");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
+const JadwalPelajaran = require("../model/JadwalPelajaran");
 
 // ================== CREATE ==================
 router.post("/", authenticateToken, authorizeRole("Admin"), async (req, res) => {
@@ -130,19 +131,36 @@ router.put("/:id", authenticateToken, authorizeRole("Admin"), async (req, res) =
 // ================== DELETE (Soft Delete) ==================
 router.delete("/:id", authenticateToken, authorizeRole("Admin"), async (req, res) => {
   try {
-    const [deleted] = await KelasTahunAjaran.update(
-      { deleted_at: new Date() },
-      { where: { id_kelas_tahun_ajaran: req.params.id } }
-    );
+    const { id } = req.params;
 
-    if (!deleted) return res.status(404).send({ message: "Data tidak ditemukan" });
+    // Cek apakah data KelasTahunAjaran ada
+    const data = await KelasTahunAjaran.findOne({
+      where: { id_kelas_tahun_ajaran: id, deleted_at: null },
+    });
 
-    return res.status(200).send({ message: "success" });
+    if (!data) {
+      return res.status(404).send({ message: "Data tidak ditemukan" });
+    }
+
+    // Hapus (hard delete) semua jadwal pelajaran yang terkait dengan kelas_tahun_ajaran ini
+    await JadwalPelajaran.destroy({
+      where: { id_kelas_tahun_ajaran: id },
+    });
+
+    // Soft delete kelas_tahun_ajaran
+    await data.update({ deleted_at: new Date() });
+    
+    return res.status(200).send({
+      message:
+        "Kelas tahun ajaran dan semua jadwal pelajaran terkait berhasil dihapus",
+    });
   } catch (err) {
-    return res
-      .status(500)
-      .send({ message: "Terjadi kesalahan", error: err.message });
+    return res.status(500).send({
+      message: "Terjadi kesalahan saat menghapus data",
+      error: err.message,
+    });
   }
 });
+
 
 module.exports = router;

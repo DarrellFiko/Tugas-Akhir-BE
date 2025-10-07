@@ -3,6 +3,9 @@ const router = express.Router();
 
 const Kelas = require("../model/Kelas");
 const User = require("../model/User");
+const JadwalPelajaran = require("../model/JadwalPelajaran");
+const KelasTahunAjaran = require("../model/KelasTahunAjaran");
+const KelasSiswa = require("../model/KelasSiswa");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
 
 // ========================== CREATE ==========================
@@ -168,19 +171,48 @@ router.delete(
   async (req, res) => {
     try {
       const { id_kelas } = req.params;
-      const kelas = await Kelas.findByPk(id_kelas);
 
+      // Cek apakah kelas ada
+      const kelas = await Kelas.findByPk(id_kelas);
       if (!kelas) {
         return res.status(404).send({ message: "Kelas tidak ditemukan" });
       }
 
+      // Cari semua kelas_tahun_ajaran yang terkait dengan kelas ini
+      const kelasTahunAjaranList = await KelasTahunAjaran.findAll({
+        where: { id_kelas },
+        attributes: ["id_kelas_tahun_ajaran"],
+      });
+
+      // Hapus semua jadwal_pelajaran yang terkait dengan setiap kelas_tahun_ajaran
+      const idKelasTahunAjaranList = kelasTahunAjaranList.map(
+        (item) => item.id_kelas_tahun_ajaran
+      );
+
+      if (idKelasTahunAjaranList.length > 0) {
+        await JadwalPelajaran.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+      }
+
+      // Hapus semua kelas_tahun_ajaran yang terkait dengan kelas ini
+      await KelasTahunAjaran.destroy({ where: { id_kelas } });
+
+      // Hapus semua kelas_siswa yang terkait dengan kelas ini
+      await KelasSiswa.destroy({ where: { id_kelas } });
+
+      // Hapus kelas itu sendiri
       await kelas.destroy();
 
-      return res.status(200).send({ message: "Kelas berhasil dihapus" });
+      return res.status(200).send({
+        message:
+          "Kelas dan semua data terkait (jadwal pelajaran, kelas tahun ajaran, kelas siswa) berhasil dihapus",
+      });
     } catch (err) {
-      return res
-        .status(500)
-        .send({ message: "Terjadi kesalahan", error: err.message });
+      return res.status(500).send({
+        message: "Terjadi kesalahan saat menghapus kelas",
+        error: err.message,
+      });
     }
   }
 );

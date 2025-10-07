@@ -209,15 +209,26 @@ router.delete(
         return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
       }
 
-      await pengumuman.update({ deleted_at: new Date(), status: 0 });
+      // Soft delete semua komentar yang terkait dengan pengumuman ini
+      await Komentar.update(
+        { deleted_at: new Date() },
+        { where: { id_pengumuman } }
+      );
 
-      return res
-        .status(200)
-        .send({ message: "Pengumuman berhasil dihapus (soft delete)" });
+      // Soft delete pengumuman
+      await pengumuman.update({
+        deleted_at: new Date(),
+        status: 0,
+      });
+
+      return res.status(200).send({
+        message: "Pengumuman dan semua komentar terkait berhasil dihapus (soft delete)",
+      });
     } catch (err) {
-      return res
-        .status(500)
-        .send({ message: "Terjadi kesalahan", error: err.message });
+      return res.status(500).send({
+        message: "Terjadi kesalahan saat menghapus pengumuman",
+        error: err.message,
+      });
     }
   }
 );

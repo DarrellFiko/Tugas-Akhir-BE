@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const TahunAjaran = require("../model/TahunAjaran");
+const JadwalPelajaran = require("../model/JadwalPelajaran");
+const KelasTahunAjaran = require("../model/KelasTahunAjaran");
+const KelasSiswa = require("../model/KelasSiswa");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
 
 // ========================== CREATE ==========================
@@ -139,21 +142,57 @@ router.delete(
   async (req, res) => {
     try {
       const { id_tahun_ajaran } = req.params;
-      const tahunAjaran = await TahunAjaran.findByPk(id_tahun_ajaran);
 
+      // Cek apakah tahun ajaran ada
+      const tahunAjaran = await TahunAjaran.findByPk(id_tahun_ajaran);
       if (!tahunAjaran) {
-        return res.status(404).send({ message: "Tahun ajaran tidak ditemukan" });
+        return res
+          .status(404)
+          .send({ message: "Tahun ajaran tidak ditemukan" });
       }
 
+      // Ambil semua kelas_tahun_ajaran berdasarkan tahun ajaran ini
+      const kelasTahunAjaranList = await KelasTahunAjaran.findAll({
+        where: { id_tahun_ajaran },
+        attributes: ["id_kelas_tahun_ajaran"],
+      });
+
+      // Hapus semua jadwal_pelajaran yang terkait dengan setiap kelas_tahun_ajaran
+      const idKelasTahunAjaranList = kelasTahunAjaranList.map(
+        (item) => item.id_kelas_tahun_ajaran
+      );
+
+      if (idKelasTahunAjaranList.length > 0) {
+        await JadwalPelajaran.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+      }
+
+      // Hapus semua kelas_tahun_ajaran yang terkait dengan tahun ajaran ini
+      await KelasTahunAjaran.destroy({
+        where: { id_tahun_ajaran },
+      });
+
+      // Hapus semua kelas_siswa yang terkait dengan tahun ajaran ini
+      await KelasSiswa.destroy({
+        where: { id_tahun_ajaran },
+      });
+
+      // Hapus tahun_ajaran itu sendiri
       await tahunAjaran.destroy();
 
-      return res.status(200).send({ message: "Tahun ajaran berhasil dihapus" });
+      return res.status(200).send({
+        message:
+          "Tahun ajaran dan semua data terkait (jadwal pelajaran, kelas tahun ajaran, kelas siswa) berhasil dihapus",
+      });
     } catch (err) {
-      return res
-        .status(500)
-        .send({ message: "Terjadi kesalahan", error: err.message });
+      return res.status(500).send({
+        message: "Terjadi kesalahan saat menghapus tahun ajaran",
+        error: err.message,
+      });
     }
   }
 );
+
 
 module.exports = router;

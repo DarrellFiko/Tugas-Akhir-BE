@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const Pelajaran = require("../model/Pelajaran");
+const JadwalPelajaran = require("../model/JadwalPelajaran");
+const KelasTahunAjaran = require("../model/KelasTahunAjaran");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
 
 // ========================== CREATE ==========================
@@ -132,19 +134,48 @@ router.delete(
   async (req, res) => {
     try {
       const { id_pelajaran } = req.params;
-      const pelajaran = await Pelajaran.findByPk(id_pelajaran);
 
+      // Cek apakah pelajaran ada
+      const pelajaran = await Pelajaran.findByPk(id_pelajaran);
       if (!pelajaran) {
         return res.status(404).send({ message: "Pelajaran tidak ditemukan" });
       }
 
+      // Ambil semua kelas_tahun_ajaran yang memakai pelajaran ini
+      const kelasTahunAjaranList = await KelasTahunAjaran.findAll({
+        where: { id_pelajaran },
+        attributes: ["id_kelas_tahun_ajaran"],
+      });
+
+      // Ambil semua id_kelas_tahun_ajaran-nya
+      const idKelasTahunAjaranList = kelasTahunAjaranList.map(
+        (item) => item.id_kelas_tahun_ajaran
+      );
+
+      // Hapus semua jadwal_pelajaran yang terkait
+      if (idKelasTahunAjaranList.length > 0) {
+        await JadwalPelajaran.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+      }
+
+      // Hapus semua kelas_tahun_ajaran yang memakai pelajaran ini
+      await KelasTahunAjaran.destroy({
+        where: { id_pelajaran },
+      });
+
+      // Terakhir, hapus pelajaran itu sendiri
       await pelajaran.destroy();
 
-      return res.status(200).send({ message: "Pelajaran berhasil dihapus" });
+      return res.status(200).send({
+        message:
+          "Pelajaran dan semua data terkait (jadwal pelajaran & kelas tahun ajaran) berhasil dihapus",
+      });
     } catch (err) {
-      return res
-        .status(500)
-        .send({ message: "Terjadi kesalahan", error: err.message });
+      return res.status(500).send({
+        message: "Terjadi kesalahan saat menghapus pelajaran",
+        error: err.message,
+      });
     }
   }
 );

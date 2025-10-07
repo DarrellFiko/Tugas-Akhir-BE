@@ -43,7 +43,7 @@ Pengumuman.init(
     },
     id_kelas_tahun_ajaran: {
       type: DataTypes.INTEGER,
-      allowNull: true, // null = pengumuman dari Admin
+      allowNull: true,
       references: {
         model: "kelas_tahun_ajaran",
         key: "id_kelas_tahun_ajaran",

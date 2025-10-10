@@ -13,6 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ================= IMPORT ROUTER =================
 const userRouter = require("./routes/user");
+const materiRouter = require("./routes/materi");
 const tahunAjaranRouter = require("./routes/tahunAjaran");
 const kelasRouter = require("./routes/kelas");
 const pelajaranRouter = require("./routes/pelajaran");
@@ -23,8 +24,9 @@ const komentarRoutes = require("./routes/komentar");
 const kelasSiswaRoutes = require("./routes/kelasSiswa");
 
 // ================= IMPORT MODEL =================
-const Kelas = require("./model/Kelas");
 const User = require("./model/User");
+const Materi = require("./model/Materi");
+const Kelas = require("./model/Kelas");
 const Komentar = require("./model/Komentar");
 const Pengumuman = require("./model/Pengumuman");
 const KelasTahunAjaran = require("./model/KelasTahunAjaran");
@@ -32,6 +34,8 @@ const TahunAjaran = require("./model/TahunAjaran");
 const Pelajaran = require("./model/Pelajaran");
 const JadwalPelajaran = require("./model/JadwalPelajaran");
 const KelasSiswa = require("./model/KelasSiswa");
+const Presensi = require("./model/Presensi");
+const BeritaAcara = require("./model/BeritaAcara");
 
 // ================= RELATION =================
 Kelas.belongsTo(User, { foreignKey: "wali_kelas", as: "wali" });
@@ -63,6 +67,14 @@ Kelas.hasMany(KelasSiswa, { foreignKey: "id_kelas", as: "KelasSiswa" });
 TahunAjaran.hasMany(KelasSiswa, { foreignKey: "id_tahun_ajaran", as: "KelasSiswa" });
 User.hasMany(KelasSiswa, { foreignKey: "id_siswa", as: "SiswaKelas" });
 
+// --- Materi ---
+Materi.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas_tahun_ajaran", as: "KelasTahunAjaran" });
+KelasTahunAjaran.hasMany(Materi, { foreignKey: "id_kelas_tahun_ajaran", as: "Materi" });
+
+// --- Presensi ---
+Presensi.belongsTo(BeritaAcara, { foreignKey: "id_berita_acara", as: "beritaAcara" });
+Presensi.belongsTo(User, { foreignKey: "id_siswa", as: "siswa" });
+
 
 // ================= TEST ROUTE =================
 app.get("/test", (req, res) => {
@@ -71,6 +83,7 @@ app.get("/test", (req, res) => {
 
 // ================= API ROUTES =================
 app.use("/api/users", userRouter);
+app.use("/api/materi", materiRouter);
 app.use("/api/pengumuman", pengumumanRouter);
 app.use("/api/komentar", komentarRoutes);
 app.use("/api/tahun-ajaran", tahunAjaranRouter);

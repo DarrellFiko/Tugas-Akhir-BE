@@ -14,6 +14,7 @@ const getFileUrl = (req, filename) => {
   return `${req.protocol}://${req.get("host")}/uploads/pengumuman/${filename}`;
 };
 
+// JANGAN LUPA UNTUK SEND EMAIL KE USERNYA SEBAGAI NOTIFICATION
 // ================== CREATE ==================
 router.post(
   "/",
@@ -23,11 +24,21 @@ router.post(
   async (req, res) => {
     try {
       const { judul, isi, id_kelas_tahun_ajaran } = req.body;
+      const { role } = req.user;
 
       if (!judul) {
         return res.status(400).send({ message: "Judul wajib diisi" });
       }
 
+      // Jika role Admin -> file wajib
+      // Jika role Guru -> file opsional
+      if (role.toLowerCase() === "Admin" && !req.file) {
+        return res.status(400).send({
+          message: "File wajib diupload untuk Admin",
+        });
+      }
+
+      // Buat pengumuman (file bisa null jika Guru)
       const pengumuman = await Pengumuman.create({
         judul,
         isi,
@@ -43,6 +54,7 @@ router.post(
         },
       });
     } catch (err) {
+      console.error(err);
       return res
         .status(500)
         .send({ message: "Terjadi kesalahan", error: err.message });

@@ -5,6 +5,7 @@ const Kelas = require("../model/Kelas");
 const TahunAjaran = require("../model/TahunAjaran");
 const Pelajaran = require("../model/Pelajaran");
 const User = require("../model/User");
+const KelasSiswa = require("../model/KelasSiswa");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
 const JadwalPelajaran = require("../model/JadwalPelajaran");
 
@@ -64,6 +65,97 @@ router.get("/", authenticateToken, async (req, res) => {
     return res
       .status(500)
       .send({ message: "Terjadi kesalahan", error: err.message });
+  }
+});
+
+// ================== GET PELAJARAN BY TAHUN AJARAN ==================
+router.get("/pelajaran/:id_tahun_ajaran", authenticateToken, async (req, res) => {
+  try {
+    const { id_tahun_ajaran } = req.params;
+    const { id_user, role } = req.user;
+
+    // ================== GURU ==================
+    if (role.toLowerCase() === "guru") {
+      const data = await KelasTahunAjaran.findAll({
+        where: {
+          id_tahun_ajaran,
+          guru_pengampu: id_user,
+          deleted_at: null,
+        },
+        include: [
+          { model: Pelajaran, as: "Pelajaran", attributes: ["id_pelajaran", "nama_pelajaran"] },
+          { model: Kelas, as: "Kelas", attributes: ["id_kelas", "nama_kelas"] },
+          { model: User, as: "GuruPengampu", attributes: ["id_user", "nama"] },
+        ],
+        raw: true,
+        nest: true,
+      });
+
+      if (!data.length) {
+        return res.status(404).send({ message: "Tidak ada pelajaran ditemukan untuk guru ini" });
+      }
+
+      const formatted = data.map((item) => ({
+        id_kelas_tahun_ajaran: item.id_kelas_tahun_ajaran,
+        id_pelajaran: item.Pelajaran.id_pelajaran,
+        nama_pelajaran: item.Pelajaran.nama_pelajaran,
+        id_kelas: item.Kelas.id_kelas,
+        nama_kelas: item.Kelas.nama_kelas,
+        id_guru: item.GuruPengampu.id_user,
+        nama_pengajar: item.GuruPengampu.nama,
+      }));
+
+      return res.status(200).send({ message: "success", data: formatted });
+    }
+
+    // ================== SISWA ==================
+    if (role.toLowerCase() === "siswa") {
+      const kelasSiswa = await KelasSiswa.findOne({
+        where: { id_siswa: id_user, id_tahun_ajaran, deleted_at: null },
+        attributes: ["id_kelas"],
+      });
+
+      if (!kelasSiswa) {
+        return res.status(404).send({ message: "Siswa tidak terdaftar di tahun ajaran ini" });
+      }
+
+      const data = await KelasTahunAjaran.findAll({
+        where: {
+          id_tahun_ajaran,
+          id_kelas: kelasSiswa.id_kelas,
+          deleted_at: null,
+        },
+        include: [
+          { model: Pelajaran, as: "Pelajaran", attributes: ["id_pelajaran", "nama_pelajaran"] },
+          { model: Kelas, as: "Kelas", attributes: ["id_kelas", "nama_kelas"] },
+          { model: User, as: "GuruPengampu", attributes: ["id_user", "nama"] },
+        ],
+        raw: true,
+        nest: true,
+      });
+
+      if (!data.length) {
+        return res.status(404).send({ message: "Tidak ada pelajaran ditemukan untuk siswa ini" });
+      }
+
+      const formatted = data.map((item) => ({
+        id_kelas_tahun_ajaran: item.id_kelas_tahun_ajaran,
+        id_pelajaran: item.Pelajaran.id_pelajaran,
+        nama_pelajaran: item.Pelajaran.nama_pelajaran,
+        id_kelas: item.Kelas.id_kelas,
+        nama_kelas: item.Kelas.nama_kelas,
+        id_guru: item.GuruPengampu.id_user,
+        nama_pengajar: item.GuruPengampu.nama,
+      }));
+
+      return res.status(200).send({ message: "success", data: formatted });
+    }
+
+    // ================== ROLE TIDAK DIKENALI ==================
+    return res.status(403).send({ message: "Role tidak dikenali" });
+  } catch (err) {
+    console.error("Error get pelajaran:", err);
+    return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
   }
 });
 
@@ -161,6 +253,5 @@ router.delete("/:id", authenticateToken, authorizeRole("Admin"), async (req, res
     });
   }
 });
-
 
 module.exports = router;

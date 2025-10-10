@@ -1,11 +1,11 @@
 const { Model, DataTypes } = require("sequelize");
 const sequelize = require("../config/sequelize");
 
-class JadwalPelajaran extends Model {}
+class BeritaAcara extends Model {}
 
-JadwalPelajaran.init(
+BeritaAcara.init(
   {
-    id_jadwal: {
+    id_berita_acara: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       allowNull: false,
@@ -19,23 +19,16 @@ JadwalPelajaran.init(
         key: "id_kelas_tahun_ajaran",
       },
     },
-    hari: {
-      type: DataTypes.ENUM(
-        "Senin",
-        "Selasa",
-        "Rabu",
-        "Kamis",
-        "Jumat",
-        "Sabtu"
-      ),
+    judul: {
+      type: DataTypes.STRING(255),
       allowNull: false,
     },
-    jam_mulai: {
-      type: DataTypes.TIME,
+    deskripsi: {
+      type: DataTypes.TEXT,
       allowNull: false,
     },
-    jam_selesai: {
-      type: DataTypes.TIME,
+    tanggal: {
+      type: DataTypes.DATEONLY,
       allowNull: false,
     },
     created_at: {
@@ -51,14 +44,14 @@ JadwalPelajaran.init(
   },
   {
     sequelize,
-    modelName: "JadwalPelajaran",
-    tableName: "jadwal_pelajaran",
+    modelName: "BeritaAcara",
+    tableName: "berita_acara",
     timestamps: false,
     name: {
-      singular: "JadwalPelajaran",
-      plural: "JadwalPelajaran",
+      singular: "BeritaAcara",
+      plural: "BeritaAcara",
     },
   }
 );
 
-module.exports = JadwalPelajaran;
+module.exports = BeritaAcara;

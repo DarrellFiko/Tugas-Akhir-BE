@@ -1,42 +1,36 @@
 const { Model, DataTypes } = require("sequelize");
 const sequelize = require("../config/sequelize");
 
-class JadwalPelajaran extends Model {}
+class Presensi extends Model {}
 
-JadwalPelajaran.init(
+Presensi.init(
   {
-    id_jadwal: {
+    id_presensi: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       allowNull: false,
       autoIncrement: true,
     },
-    id_kelas_tahun_ajaran: {
+    id_berita_acara: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "kelas_tahun_ajaran",
-        key: "id_kelas_tahun_ajaran",
+        model: "berita_acara",
+        key: "id_berita_acara",
       },
     },
-    hari: {
-      type: DataTypes.ENUM(
-        "Senin",
-        "Selasa",
-        "Rabu",
-        "Kamis",
-        "Jumat",
-        "Sabtu"
-      ),
+    id_siswa: {
+      type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: "users",
+        key: "id_user",
+      },
     },
-    jam_mulai: {
-      type: DataTypes.TIME,
+    status: {
+      type: DataTypes.ENUM("Hadir", "Izin", "Sakit", "Alpha"),
       allowNull: false,
-    },
-    jam_selesai: {
-      type: DataTypes.TIME,
-      allowNull: false,
+      defaultValue: "Alpha",
     },
     created_at: {
       type: DataTypes.DATE,
@@ -51,14 +45,14 @@ JadwalPelajaran.init(
   },
   {
     sequelize,
-    modelName: "JadwalPelajaran",
-    tableName: "jadwal_pelajaran",
+    modelName: "Presensi",
+    tableName: "presensi",
     timestamps: false,
     name: {
-      singular: "JadwalPelajaran",
-      plural: "JadwalPelajaran",
+      singular: "Presensi",
+      plural: "Presensi",
     },
   }
 );
 
-module.exports = JadwalPelajaran;
+module.exports = Presensi;

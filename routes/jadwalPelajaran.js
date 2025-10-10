@@ -4,6 +4,7 @@ const JadwalPelajaran = require("../model/JadwalPelajaran");
 const KelasTahunAjaran = require("../model/KelasTahunAjaran");
 const Kelas = require("../model/Kelas");
 const TahunAjaran = require("../model/TahunAjaran");
+const KelasSiswa = require("../model/KelasSiswa");
 const Pelajaran = require("../model/Pelajaran");
 const User = require("../model/User");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
@@ -48,7 +49,7 @@ router.get("/", authenticateToken, async (req, res) => {
             },
             { model: User, as: "GuruPengampu", attributes: ["id_user", "nama"] },
           ],
-        },
+        }, 
       ],
     });
 
@@ -79,6 +80,138 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
+// ================== GET JADWAL SISWA ==================
+router.get(
+  "/siswa/:id_tahun_ajaran",
+  authenticateToken,
+  authorizeRole(["Siswa"]),
+  async (req, res) => {
+    try {
+      const { id_tahun_ajaran } = req.params;
+      const id_siswa = req.user.id_user;
+
+      const kelasSiswa = await KelasSiswa.findOne({
+        where: { id_tahun_ajaran, id_siswa },
+        attributes: ["id_kelas"],
+      });
+
+      if (!kelasSiswa) {
+        return res.status(404).send({ message: "Kelas siswa tidak ditemukan" });
+      }
+
+      const kelasTA = await KelasTahunAjaran.findAll({
+        where: {
+          id_kelas: kelasSiswa.id_kelas,
+          id_tahun_ajaran,
+        },
+        include: [
+          { model: Kelas, as: "Kelas", attributes: ["nama_kelas"] },
+          { model: Pelajaran, as: "Pelajaran", attributes: ["nama_pelajaran"] },
+          { model: User, as: "GuruPengampu", attributes: ["nama"] },
+        ],
+      });
+
+      const idKTAList = kelasTA.map((kta) => kta.id_kelas_tahun_ajaran);
+
+      const jadwalList = await JadwalPelajaran.findAll({
+        where: { id_kelas_tahun_ajaran: idKTAList },
+        include: [
+          {
+            model: KelasTahunAjaran,
+            as: "kelasTahunAjaran",
+            include: [
+              { model: Pelajaran, as: "Pelajaran", attributes: ["nama_pelajaran"] },
+              { model: User, as: "GuruPengampu", attributes: ["nama"] },
+              { model: Kelas, as: "Kelas", attributes: ["nama_kelas"] },
+            ],
+          },
+        ],
+        order: [
+          ["hari", "ASC"],
+          ["jam_mulai", "ASC"],
+        ],
+      });
+
+      // Group by hari
+      const grouped = {};
+      jadwalList.forEach((j) => {
+        const hari = j.hari || "Tidak Ditentukan";
+        if (!grouped[hari]) grouped[hari] = [];
+
+        grouped[hari].push({
+          jam: `${j.jam_mulai.slice(0, 5)} - ${j.jam_selesai.slice(0, 5)}`,
+          pelajaran: j.kelasTahunAjaran?.Pelajaran?.nama_pelajaran || "-",
+          pengajar: j.kelasTahunAjaran?.GuruPengampu?.nama || "-",
+          kelas: j.kelasTahunAjaran?.Kelas?.nama_kelas || "-",
+        });
+      });
+
+      return res.status(200).send({ message: "success", data: grouped });
+    } catch (err) {
+      console.error("Error jadwal siswa:", err);
+      return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
+    }
+  }
+);
+
+// ================== GET JADWAL GURU ==================
+router.get(
+  "/guru/:id_tahun_ajaran",
+  authenticateToken,
+  authorizeRole(["Guru"]),
+  async (req, res) => {
+    try {
+      const { id_tahun_ajaran } = req.params;
+      const id_guru = req.user.id_user;
+
+      const kelasTA = await KelasTahunAjaran.findAll({
+        where: { id_tahun_ajaran, guru_pengampu: id_guru },
+        include: [
+          { model: Kelas, as: "Kelas", attributes: ["nama_kelas"] },
+          { model: Pelajaran, as: "Pelajaran", attributes: ["nama_pelajaran"] },
+        ],
+      });
+
+      const idKTAList = kelasTA.map((kta) => kta.id_kelas_tahun_ajaran);
+
+      const jadwalList = await JadwalPelajaran.findAll({
+        where: { id_kelas_tahun_ajaran: idKTAList },
+        include: [
+          {
+            model: KelasTahunAjaran,
+            as: "kelasTahunAjaran",
+            include: [
+              { model: Pelajaran, as: "Pelajaran", attributes: ["nama_pelajaran"] },
+              { model: Kelas, as: "Kelas", attributes: ["nama_kelas"] },
+            ],
+          },
+        ],
+        order: [
+          ["hari", "ASC"],
+          ["jam_mulai", "ASC"],
+        ],
+      });
+
+      // Group by hari
+      const grouped = {};
+      jadwalList.forEach((j) => {
+        const hari = j.hari || "Tidak Ditentukan";
+        if (!grouped[hari]) grouped[hari] = [];
+
+        grouped[hari].push({
+          jam: `${j.jam_mulai.slice(0, 5)} - ${j.jam_selesai.slice(0, 5)}`,
+          pelajaran: j.kelasTahunAjaran?.Pelajaran?.nama_pelajaran || "-",
+          kelas: j.kelasTahunAjaran?.Kelas?.nama_kelas || "-",
+        });
+      });
+
+      return res.status(200).send({ message: "success", data: grouped });
+    } catch (err) {
+      console.error("Error jadwal guru:", err);
+      return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
+    }
+  }
+);
 
 // ================== GET BY ID ==================
 router.get("/:id", authenticateToken, async (req, res) => {

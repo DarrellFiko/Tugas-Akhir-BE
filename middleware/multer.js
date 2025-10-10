@@ -107,9 +107,42 @@ const uploadRapor = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 
-// ===================== EXPORT =====================
+// ===================== MATERI UPLOAD =====================
+const storageMateri = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, "../uploads/materi");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${file.fieldname}-${Date.now()}-${uuidv4()}${path.extname(
+      file.originalname
+    )}`;
+    cb(null, uniqueName);
+  },
+});
+
+const fileFilterMateri = (req, file, cb) => {
+  const allowedTypes = /pdf|ppt|pptx|doc|docx|xls|xlsx|txt/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  if (extname) {
+    cb(null, true);
+  } else {
+    cb(new Error("Hanya file dengan format pdf, ppt, word, excel, atau txt yang diperbolehkan!"));
+  }
+};
+
+const uploadMateri = multer({
+  storage: storageMateri,
+  fileFilter: fileFilterMateri,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+});
+
 module.exports = {
   uploadProfile,
   uploadPengumuman,
   uploadRapor,
+  uploadMateri,
 };

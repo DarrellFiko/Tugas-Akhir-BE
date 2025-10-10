@@ -6,6 +6,7 @@ const { authenticateToken, authorizeRole } = require("../middleware/auth");
 const { uploadRapor } = require("../middleware/multer");
 
 const KelasSiswa = require("../model/KelasSiswa");
+const KelasTahunAjaran = require("../model/KelasTahunAjaran");
 const User = require("../model/User");
 const Kelas = require("../model/Kelas");
 const TahunAjaran = require("../model/TahunAjaran");
@@ -89,6 +90,60 @@ router.get("/", authenticateToken, async (req, res) => {
     return res
       .status(500)
       .send({ message: "Terjadi kesalahan", error: err.message });
+  }
+});
+
+// ================== GET LIST SISWA BERDASARKAN ID KELAS TAHUN AJARAN ==================
+router.get("/list-siswa", authenticateToken, async (req, res) => {
+  try {
+    const { id_kelas_tahun_ajaran } = req.query;
+
+    if (!id_kelas_tahun_ajaran) {
+      return res.status(400).send({ message: "Parameter id_kelas_tahun_ajaran wajib diisi" });
+    }
+
+    const kelasTahunAjaran = await KelasTahunAjaran.findOne({
+      where: { id_kelas_tahun_ajaran, deleted_at: null },
+      attributes: ["id_kelas", "id_tahun_ajaran"],
+    });
+
+    if (!kelasTahunAjaran) {
+      return res.status(404).send({ message: "Kelas tahun ajaran tidak ditemukan" });
+    }
+
+    const siswaList = await KelasSiswa.findAll({
+      where: {
+        id_kelas: kelasTahunAjaran.id_kelas,
+        id_tahun_ajaran: kelasTahunAjaran.id_tahun_ajaran,
+        deleted_at: null,
+      },
+      include: [
+        {
+          model: User,
+          as: "Siswa",
+          attributes: ["id_user", "nis", "nisn", "nama"],
+        },
+      ],
+      order: [[{ model: User, as: "Siswa" }, "nama", "ASC"]],
+    });
+
+    const data = siswaList.map((item) => ({
+      id_user: item.Siswa.id_user,
+      nis: item.Siswa.nis,
+      nisn: item.Siswa.nisn,
+      nama: item.Siswa.nama,
+    }));
+
+    return res.status(200).send({
+      message: "success",
+      data,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send({
+      message: "Terjadi kesalahan",
+      error: err.message,
+    });
   }
 });
 
@@ -245,6 +300,5 @@ router.delete(
     }
   }
 );
-
 
 module.exports = router;

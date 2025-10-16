@@ -23,6 +23,8 @@ const pengumumanRouter = require("./routes/pengumuman");
 const komentarRoutes = require("./routes/komentar");
 const kelasSiswaRoutes = require("./routes/kelasSiswa");
 const beritaAcaraRoutes = require("./routes/beritaAcara");
+const modulRoutes = require("./routes/modul");
+const pengumpulanModulRoutes = require("./routes/pengumpulanModul");
 
 // ================= IMPORT MODEL =================
 const User = require("./model/User");
@@ -37,8 +39,12 @@ const JadwalPelajaran = require("./model/JadwalPelajaran");
 const KelasSiswa = require("./model/KelasSiswa");
 const Presensi = require("./model/Presensi");
 const BeritaAcara = require("./model/BeritaAcara");
+const Modul = require("./model/Modul");
+const PengumpulanModul = require("./model/PengumpulanModul");
 
 // ================= RELATION =================
+
+// --- Wali Kelas ---
 Kelas.belongsTo(User, { foreignKey: "wali_kelas", as: "wali" });
 User.hasMany(Kelas, { foreignKey: "wali_kelas", as: "kelas_wali" });
 
@@ -54,6 +60,10 @@ KelasTahunAjaran.belongsTo(TahunAjaran, { foreignKey: "id_tahun_ajaran" });
 KelasTahunAjaran.belongsTo(Kelas, { foreignKey: "id_kelas" });
 KelasTahunAjaran.belongsTo(Pelajaran, { foreignKey: "id_pelajaran" });
 KelasTahunAjaran.belongsTo(User, { as: "GuruPengampu", foreignKey: "guru_pengampu" });
+
+// Supaya bisa ambil data "kelas -> siswa" lewat kelas_tahun_ajaran
+KelasTahunAjaran.hasMany(KelasSiswa, { foreignKey: "id_kelas", sourceKey: "id_kelas", as: "SiswaKelas" });
+KelasSiswa.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas", targetKey: "id_kelas", as: "KelasTahunAjaranRef" });
 
 // --- Jadwal Pelajaran ---
 JadwalPelajaran.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas_tahun_ajaran", as: "kelasTahunAjaran" });
@@ -72,7 +82,7 @@ User.hasMany(KelasSiswa, { foreignKey: "id_siswa", as: "SiswaKelas" });
 Materi.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas_tahun_ajaran", as: "KelasTahunAjaran" });
 KelasTahunAjaran.hasMany(Materi, { foreignKey: "id_kelas_tahun_ajaran", as: "Materi" });
 
-// --- Presensi ---
+// --- Berita Acara ---
 BeritaAcara.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas_tahun_ajaran", as: "kelasTahunAjaran" });
 KelasTahunAjaran.hasMany(BeritaAcara, { foreignKey: "id_kelas_tahun_ajaran", as: "beritaAcaraList" });
 
@@ -80,6 +90,13 @@ KelasTahunAjaran.hasMany(BeritaAcara, { foreignKey: "id_kelas_tahun_ajaran", as:
 Presensi.belongsTo(BeritaAcara, { foreignKey: "id_berita_acara", as: "beritaAcara" });
 Presensi.belongsTo(User, { foreignKey: "id_siswa", as: "siswa" });
 BeritaAcara.hasMany(Presensi, { foreignKey: "id_berita_acara", as: "presensiList" });
+
+// --- Modul ---
+Modul.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas_tahun_ajaran", as: "kelasTahunAjaran" });
+KelasTahunAjaran.hasMany(Modul, { foreignKey: "id_kelas_tahun_ajaran", as: "modulList" });
+
+// --- Pengumpulan Modul ---
+PengumpulanModul.belongsTo(User, { foreignKey: "id_siswa", as: "siswa" });
 
 // ================= TEST ROUTE =================
 app.get("/test", (req, res) => {
@@ -98,6 +115,8 @@ app.use("/api/kelas-tahun-ajaran", kelasTahunAjaranRouter);
 app.use("/api/jadwal-pelajaran", jadwalPelajaranRouter);
 app.use("/api/kelas-siswa", kelasSiswaRoutes);
 app.use("/api/berita-acara", beritaAcaraRoutes);
+app.use("/api/modul", modulRoutes);
+app.use("/api/pengumpulan-modul", pengumpulanModulRoutes);
 
 // Static folder untuk upload file
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

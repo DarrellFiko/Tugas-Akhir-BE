@@ -7,6 +7,7 @@ const Presensi = require("../model/Presensi");
 const KelasTahunAjaran = require("../model/KelasTahunAjaran");
 const User = require("../model/User");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
+const Pelajaran = require("../model/Pelajaran");
 
 // ================== CREATE ==================
 router.post(
@@ -24,6 +25,7 @@ router.post(
           judul,
           deskripsi,
           tanggal,
+          id_created_by: req.user.id_user, 
         },
         { transaction: t }
       );
@@ -131,11 +133,20 @@ router.get("/", authenticateToken, async (req, res) => {
 router.get("/:id_berita_acara", authenticateToken, async (req, res) => {
   try {
     const { id_berita_acara } = req.params;
+    const user = req.user;
+
     const beritaAcara = await BeritaAcara.findByPk(id_berita_acara, {
       include: [
         {
           model: KelasTahunAjaran,
           as: "kelasTahunAjaran",
+          include: [
+            {
+              model: Pelajaran,
+              as: "Pelajaran",
+              attributes: ["id_pelajaran", "nama_pelajaran"],
+            },
+          ],
         },
         {
           model: Presensi,
@@ -153,6 +164,15 @@ router.get("/:id_berita_acara", authenticateToken, async (req, res) => {
 
     if (!beritaAcara) {
       return res.status(404).send({ message: "Berita acara tidak ditemukan" });
+    }
+
+    // ============== CEK HAK AKSES ==============
+    if (
+      beritaAcara.id_created_by !== user.id_user
+    ) {
+      return res.status(403).send({
+        message: "Akses ditolak. Anda bukan pembuat berita acara ini.",
+      });
     }
 
     return res.status(200).send({ message: "success", data: beritaAcara });

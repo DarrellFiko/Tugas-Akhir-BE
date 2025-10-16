@@ -125,7 +125,7 @@ router.get("/:id_kelas", authenticateToken, async (req, res) => {
       created_at: kelas.created_at,
       updated_at: kelas.updated_at,
       deleted_at: kelas.deleted_at,
-      nama_wali_kelas: kelas.wali ? kelas.wali.nama : null, // hanya nama wali
+      nama_wali_kelas: kelas.wali ? kelas.wali.nama : null,
     };
 
     return res.status(200).send({ message: "success", data: result });

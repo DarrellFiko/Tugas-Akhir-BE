@@ -140,9 +140,43 @@ const uploadMateri = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 
+// ===================== PENGUMPULAN MODUL UPLOAD =====================
+const storagePengumpulanModul = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, "../uploads/pengumpulan_modul");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${file.fieldname}-${Date.now()}-${uuidv4()}${path.extname(
+      file.originalname
+    )}`;
+    cb(null, uniqueName);
+  },
+});
+
+const fileFilterPengumpulanModul = (req, file, cb) => {
+  const allowedTypes = /pdf|ppt|pptx|doc|docx/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  if (extname) {
+    cb(null, true);
+  } else {
+    cb(new Error("Hanya file dengan format PDF, PPT, atau Word yang diperbolehkan!"));
+  }
+};
+
+const uploadPengumpulanModul = multer({
+  storage: storagePengumpulanModul,
+  fileFilter: fileFilterPengumpulanModul,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+});
+
 module.exports = {
   uploadProfile,
   uploadPengumuman,
   uploadRapor,
   uploadMateri,
+  uploadPengumpulanModul,
 };

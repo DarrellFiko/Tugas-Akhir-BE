@@ -92,7 +92,7 @@ router.get("/pelajaran/:id_tahun_ajaran", authenticateToken, async (req, res) =>
       });
 
       if (!data.length) {
-        return res.status(404).send({ message: "Tidak ada pelajaran ditemukan untuk guru ini" });
+        return res.status(200).send({ message: "success", data: [] });
       }
 
       const formatted = data.map((item) => ({
@@ -116,7 +116,7 @@ router.get("/pelajaran/:id_tahun_ajaran", authenticateToken, async (req, res) =>
       });
 
       if (!kelasSiswa) {
-        return res.status(404).send({ message: "Siswa tidak terdaftar di tahun ajaran ini" });
+        return res.status(200).send({ message: "success", data: [] });
       }
 
       const data = await KelasTahunAjaran.findAll({
@@ -135,7 +135,7 @@ router.get("/pelajaran/:id_tahun_ajaran", authenticateToken, async (req, res) =>
       });
 
       if (!data.length) {
-        return res.status(404).send({ message: "Tidak ada pelajaran ditemukan untuk siswa ini" });
+        return res.status(200).send({ message: "success", data: [] });
       }
 
       const formatted = data.map((item) => ({

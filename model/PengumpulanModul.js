@@ -1,25 +1,25 @@
 const { Model, DataTypes } = require("sequelize");
 const sequelize = require("../config/sequelize");
 
-class BeritaAcara extends Model {}
+class PengumpulanModul extends Model {}
 
-BeritaAcara.init(
+PengumpulanModul.init(
   {
-    id_berita_acara: {
+    id_pengumpulan_modul: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       allowNull: false,
       autoIncrement: true,
     },
-    id_kelas_tahun_ajaran: {
+    id_modul: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "kelas_tahun_ajaran",
-        key: "id_kelas_tahun_ajaran",
+        model: "modul",
+        key: "id_modul",
       },
     },
-    id_created_by: {
+    id_siswa: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -27,17 +27,9 @@ BeritaAcara.init(
         key: "id_user",
       },
     },
-    judul: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-    },
-    deskripsi: {
+    file_pengumpulan: {
       type: DataTypes.TEXT,
       allowNull: true,
-    },
-    tanggal: {
-      type: DataTypes.DATEONLY,
-      allowNull: false,
     },
     created_at: {
       type: DataTypes.DATE,
@@ -49,17 +41,21 @@ BeritaAcara.init(
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     sequelize,
-    modelName: "BeritaAcara",
-    tableName: "berita_acara",
+    modelName: "PengumpulanModul",
+    tableName: "pengumpulan_modul",
     timestamps: false,
     name: {
-      singular: "BeritaAcara",
-      plural: "BeritaAcara",
+      singular: "PengumpulanModul",
+      plural: "PengumpulanModul",
     },
   }
 );
 
-module.exports = BeritaAcara;
+module.exports = PengumpulanModul;

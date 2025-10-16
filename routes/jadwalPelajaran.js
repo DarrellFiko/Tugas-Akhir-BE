@@ -75,7 +75,7 @@ router.get("/", authenticateToken, async (req, res) => {
 
     return res.status(200).send({ message: "success", data: formatted });
   } catch (err) {
-    console.error("Error GET ALL jadwal:", err); // biar ketahuan detailnya
+    console.error("Error GET ALL jadwal:", err);
     return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
   }
 });
@@ -96,7 +96,7 @@ router.get(
       });
 
       if (!kelasSiswa) {
-        return res.status(404).send({ message: "Kelas siswa tidak ditemukan" });
+        return res.status(200).send({ message: "success", data: [] });
       }
 
       const kelasTA = await KelasTahunAjaran.findAll({

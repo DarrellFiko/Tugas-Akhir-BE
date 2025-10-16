@@ -336,6 +336,7 @@ router.post("/login", async (req, res) => {
       nama: user.nama,
       role: user.role,
       profile_picture: user.profile_picture,
+      id_user: user.id_user
     });
   } catch (err) {
     return res.status(500).send({ message: "Terjadi kesalahan", error: err });

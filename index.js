@@ -11,6 +11,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// const { multerErrorHandler } = require("./middleware/errorHandler");
+
 // ================= IMPORT ROUTER =================
 const userRouter = require("./routes/user");
 const materiRouter = require("./routes/materi");
@@ -26,6 +28,9 @@ const beritaAcaraRoutes = require("./routes/beritaAcara");
 const modulRoutes = require("./routes/modul");
 const pengumpulanModulRoutes = require("./routes/pengumpulanModul");
 const nilaiRoutes = require("./routes/nilai");
+const ujianRoutes = require("./routes/ujian");
+const soalRoutes = require("./routes/soal");
+const jawabanUjianRoutes = require("./routes/jawabanUjian");
 
 // ================= IMPORT MODEL =================
 const User = require("./model/User");
@@ -43,6 +48,9 @@ const BeritaAcara = require("./model/BeritaAcara");
 const Modul = require("./model/Modul");
 const PengumpulanModul = require("./model/PengumpulanModul");
 const Nilai = require("./model/Nilai");
+const Ujian = require("./model/Ujian");
+const Soal = require("./model/Soal");
+const JawabanUjian = require("./model/JawabanUjian");
 
 // ================= RELATION =================
 
@@ -109,6 +117,17 @@ User.hasMany(Nilai, { foreignKey: "id_siswa", as: "nilaiList" });
 KelasTahunAjaran.hasMany(Nilai, { foreignKey: "id_kelas_tahun_ajaran", as: "nilaiList" });
 Modul.hasMany(Nilai, { foreignKey: "id_modul", as: "nilaiModulList" });
 
+// --- Ujian ---
+Ujian.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas_tahun_ajaran", as: "kelasTahunAjaran" });
+KelasTahunAjaran.hasMany(Ujian, { foreignKey: "id_kelas_tahun_ajaran", as: "ujianList" });
+
+Ujian.hasMany(Soal, { foreignKey: "id_ujian", as: "soalList" });
+Soal.belongsTo(Ujian, { foreignKey: "id_ujian", as: "ujian" });
+
+JawabanUjian.belongsTo(Soal, { foreignKey: "id_soal" });
+Soal.hasMany(JawabanUjian, { foreignKey: "id_soal" });
+
+
 // ================= TEST ROUTE =================
 app.get("/test", (req, res) => {
   return res.status(200).send("Hello World!");
@@ -129,10 +148,16 @@ app.use("/api/berita-acara", beritaAcaraRoutes);
 app.use("/api/modul", modulRoutes);
 app.use("/api/pengumpulan-modul", pengumpulanModulRoutes);
 app.use("/api/nilai", nilaiRoutes);
+app.use("/api/ujian", ujianRoutes);
+app.use("/api/soal", soalRoutes);
+app.use("/api/jawaban-ujian", jawabanUjianRoutes);
 
 // Static folder untuk upload file
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/uploads/pengumuman", express.static(path.join(__dirname, "uploads/pengumuman")));
+
+// Error handler
+// app.use(multerErrorHandler);
 
 // Port ambil dari .env, fallback ke 8080
 const PORT = process.env.PORT || 8080;

@@ -39,7 +39,6 @@ function authorizeRole(roles) {
   };
 }
 
-
 // ========================== LOGOUT HANDLER (BLACKLIST) ==========================
 function addToBlacklist(token) {
   tokenBlacklist.push(token);

@@ -69,7 +69,7 @@ const fileFilterPengumuman = (req, file, cb) => {
 const uploadPengumuman = multer({
   storage: storagePengumuman,
   fileFilter: fileFilterPengumuman,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
 });
 
 // ===================== RAPOR UPLOAD =====================
@@ -104,7 +104,7 @@ const fileFilterRapor = (req, file, cb) => {
 const uploadRapor = multer({
   storage: storageRapor,
   fileFilter: fileFilterRapor,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
 });
 
 // ===================== MATERI UPLOAD =====================
@@ -137,7 +137,7 @@ const fileFilterMateri = (req, file, cb) => {
 const uploadMateri = multer({
   storage: storageMateri,
   fileFilter: fileFilterMateri,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
 });
 
 // ===================== PENGUMPULAN MODUL UPLOAD =====================
@@ -170,7 +170,42 @@ const fileFilterPengumpulanModul = (req, file, cb) => {
 const uploadPengumpulanModul = multer({
   storage: storagePengumpulanModul,
   fileFilter: fileFilterPengumpulanModul,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+});
+
+// ===================== SOAL UPLOAD =====================
+const storageSoal = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, "../uploads/soal");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${file.fieldname}-${Date.now()}-${uuidv4()}${path.extname(
+      file.originalname
+    )}`;
+    cb(null, uniqueName);
+  },
+});
+
+const fileFilterSoal = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (extname && mimetype) {
+    cb(null, true);
+  } else {
+    cb(new Error("Hanya file gambar (jpg, jpeg, png, gif) yang diperbolehkan untuk soal!"));
+  }
+};
+
+const uploadSoal = multer({
+  storage: storageSoal,
+  fileFilter: fileFilterSoal,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
 });
 
 module.exports = {
@@ -179,4 +214,5 @@ module.exports = {
   uploadRapor,
   uploadMateri,
   uploadPengumpulanModul,
+  uploadSoal,
 };

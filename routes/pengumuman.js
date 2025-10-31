@@ -5,6 +5,8 @@ const fs = require("fs");
 const Pengumuman = require("../model/Pengumuman");
 const Komentar = require("../model/Komentar");
 const User = require("../model/User");
+const KelasTahunAjaran = require("../model/KelasTahunAjaran");
+const KelasSiswa = require("../model/KelasSiswa");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
 const { uploadPengumuman } = require("../middleware/multer");
 
@@ -14,7 +16,6 @@ const getFileUrl = (req, filename) => {
   return `${req.protocol}://${req.get("host")}/uploads/pengumuman/${filename}`;
 };
 
-// JANGAN LUPA UNTUK SEND EMAIL KE USERNYA SEBAGAI NOTIFICATION
 // ================== CREATE ==================
 router.post(
   "/",
@@ -24,21 +25,20 @@ router.post(
   async (req, res) => {
     try {
       const { judul, isi, id_kelas_tahun_ajaran } = req.body;
-      const { role } = req.user;
+      let { role, id_user, nama } = req.user;
 
       if (!judul) {
         return res.status(400).send({ message: "Judul wajib diisi" });
       }
 
-      // Jika role Admin -> file wajib
-      // Jika role Guru -> file opsional
-      if (role.toLowerCase() === "Admin" && !req.file) {
+      // Validasi file jika admin
+      if (role.toLowerCase() === "admin" && !req.file) {
         return res.status(400).send({
           message: "File wajib diupload untuk Admin",
         });
       }
 
-      // Buat pengumuman (file bisa null jika Guru)
+      // Buat pengumuman
       const pengumuman = await Pengumuman.create({
         judul,
         isi,
@@ -46,18 +46,189 @@ router.post(
         id_kelas_tahun_ajaran: id_kelas_tahun_ajaran || null,
       });
 
+      // Kirim email notifikasi
+      const transporter = require("nodemailer").createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      let targetEmails = [];
+
+      if (role.toLowerCase() === "admin") {
+        // Admin kirim ke semua user
+        const allUsers = await User.findAll({
+          where: { deleted_at: null },
+          attributes: ["email"],
+        });
+        targetEmails = allUsers.map((u) => u.email).filter(Boolean);
+        nama = "SMA Santo Carolus";
+      } else if (role.toLowerCase() === "guru" && id_kelas_tahun_ajaran) {
+        // Guru kirim ke siswa kelasnya
+        const kelasTahun = await KelasTahunAjaran.findByPk(id_kelas_tahun_ajaran);
+        if (kelasTahun) {
+          const siswaKelas = await KelasSiswa.findAll({
+            where: {
+              id_kelas: kelasTahun.id_kelas,
+              id_tahun_ajaran: kelasTahun.id_tahun_ajaran,
+              deleted_at: null,
+            },
+            include: [{ model: User, attributes: ["email"], as: "Siswa" }],
+          });
+          targetEmails = siswaKelas.map((ks) => ks.Siswa?.email).filter(Boolean);
+        }
+      }
+
+      if (targetEmails.length > 0) {
+        const mailOptions = {
+          from: `"SMA Santo Carolus" <${process.env.EMAIL_USER}>`,
+          bcc: targetEmails,
+          subject: `Pengumuman Baru: ${judul}`,
+          html: `
+            <div style="background-color:#E3F2FD;padding:20px;border-radius:8px;font-family:'Segoe UI',sans-serif;text-align:center;">
+              <h2 style="color:#1976D2;">Pengumuman Baru</h2>
+              <p style="font-size:15px;color:#333;">${nama} telah mengunggah pengumuman baru di sistem E-Class:</p>
+
+              <div style="background:#fff;border-radius:6px;padding:20px;margin:20px auto;max-width:500px;text-align:center;">
+                <h3 style="color:#1976D2;margin-top:0;">${judul}</h3>
+                <p style="color:#555;white-space:pre-line;">${isi}</p>
+                ${
+                  pengumuman.file
+                    ? `<p><a href="${getFileUrl(req, pengumuman.file)}" style="display:inline-block;margin-top:10px;background-color:#1976D2;color:white;padding:10px 16px;border-radius:5px;text-decoration:none;">Lihat Lampiran</a></p>`
+                    : ""
+                }
+              </div>
+
+              <p style="margin-top:20px;color:#666;">Silakan masuk ke aplikasi <strong>E-Class SMA Santo Carolus</strong> untuk melihat detail lebih lanjut.</p>
+              <hr style="margin-top:20px;border:none;border-top:1px solid #BBDEFB;width:80%;margin:auto;">
+              <p style="color:#90A4AE;font-size:12px;">Email ini dikirim otomatis oleh sistem. Mohon tidak membalas.</p>
+            </div>
+          `,
+        };
+
+        await transporter.sendMail(mailOptions);
+      }
+
       return res.status(201).send({
-        message: "Pengumuman berhasil dibuat",
+        message: "Pengumuman berhasil dibuat dan notifikasi dikirim",
         data: {
           ...pengumuman.toJSON(),
           file_url: getFileUrl(req, pengumuman.file),
         },
       });
     } catch (err) {
-      console.error(err);
-      return res
-        .status(500)
-        .send({ message: "Terjadi kesalahan", error: err.message });
+      console.error("CREATE ERROR:", err);
+      return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
+    }
+  }
+);
+
+// ================== UPDATE ==================
+router.put(
+  "/:id_pengumuman",
+  authenticateToken,
+  authorizeRole(["Admin", "Guru"]),
+  uploadPengumuman.single("file"),
+  async (req, res) => {
+    try {
+      const { id_pengumuman } = req.params;
+      const { role, nama } = req.user;
+      const pengumuman = await Pengumuman.findByPk(id_pengumuman);
+
+      if (!pengumuman || pengumuman.deleted_at) {
+        return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
+      }
+
+      const updateData = {
+        judul: req.body.judul,
+        isi: req.body.isi,
+        updated_at: new Date(),
+      };
+
+      if (req.file) {
+        if (pengumuman.file) {
+          const oldFilePath = path.join(__dirname, "../uploads/pengumuman", pengumuman.file);
+          if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+        }
+        updateData.file = req.file.filename;
+      }
+
+      await pengumuman.update(updateData);
+
+      // === Kirim email notifikasi update ===
+      const transporter = require("nodemailer").createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      let targetEmails = [];
+
+      if (role.toLowerCase() === "admin") {
+        const allUsers = await User.findAll({
+          where: { deleted_at: null },
+          attributes: ["email"],
+        });
+        targetEmails = allUsers.map((u) => u.email).filter(Boolean);
+      } else if (role.toLowerCase() === "guru" && pengumuman.id_kelas_tahun_ajaran) {
+        const kelasTahun = await KelasTahunAjaran.findByPk(pengumuman.id_kelas_tahun_ajaran);
+        if (kelasTahun) {
+          const siswaKelas = await KelasSiswa.findAll({
+            where: {
+              id_kelas: kelasTahun.id_kelas,
+              id_tahun_ajaran: kelasTahun.id_tahun_ajaran,
+              deleted_at: null,
+            },
+            include: [{ model: User, attributes: ["email"], as: "Siswa" }],
+          });
+          targetEmails = siswaKelas.map((ks) => ks.Siswa?.email).filter(Boolean);
+        }
+      }
+
+      if (targetEmails.length > 0) {
+        const mailOptions = {
+          from: `"SMA Santo Carolus" <${process.env.EMAIL_USER}>`,
+          bcc: targetEmails,
+          subject: `Pengumuman Diperbarui: ${updateData.judul}`,
+          html: `
+            <div style="background-color:#E3F2FD;padding:20px;border-radius:8px;font-family:'Segoe UI',sans-serif;text-align:center;">
+              <h2 style="color:#1976D2;">Pengumuman Diperbarui</h2>
+              <p style="font-size:15px;color:#333;">${nama} telah memperbarui pengumuman berikut:</p>
+
+              <div style="background:#fff;border-radius:6px;padding:20px;margin:20px auto;max-width:500px;text-align:center;">
+                <h3 style="color:#1976D2;margin-top:0;">${updateData.judul}</h3>
+                <p style="color:#555;white-space:pre-line;">${updateData.isi}</p>
+                ${
+                  pengumuman.file
+                    ? `<p><a href="${getFileUrl(req, pengumuman.file)}" style="display:inline-block;margin-top:10px;background-color:#1976D2;color:white;padding:10px 16px;border-radius:5px;text-decoration:none;">Lihat Lampiran</a></p>`
+                    : ""
+                }
+              </div>
+
+              <p style="margin-top:20px;color:#666;">Cek kembali di <strong>E-Class SMA Santo Carolus</strong> untuk detail lengkap.</p>
+              <hr style="margin-top:20px;border:none;border-top:1px solid #BBDEFB;width:80%;margin:auto;">
+              <p style="color:#90A4AE;font-size:12px;">Email ini dikirim otomatis oleh sistem. Mohon tidak membalas.</p>
+            </div>
+          `,
+        };
+
+        await transporter.sendMail(mailOptions);
+      }
+
+      return res.status(200).send({
+        message: "Pengumuman berhasil diupdate dan notifikasi dikirim",
+        data: {
+          ...pengumuman.toJSON(),
+          file_url: getFileUrl(req, pengumuman.file),
+        },
+      });
+    } catch (err) {
+      console.error("UPDATE ERROR:", err);
+      return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
     }
   }
 );
@@ -154,58 +325,6 @@ router.get("/:id_pengumuman", authenticateToken, async (req, res) => {
       .send({ message: "Terjadi kesalahan", error: err.message });
   }
 });
-
-// ================== UPDATE ==================
-router.put(
-  "/:id_pengumuman",
-  authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
-  uploadPengumuman.single("file"),
-  async (req, res) => {
-    try {
-      const { id_pengumuman } = req.params;
-      const pengumuman = await Pengumuman.findByPk(id_pengumuman);
-
-      if (!pengumuman || pengumuman.deleted_at) {
-        return res.status(404).send({ message: "Pengumuman tidak ditemukan" });
-      }
-
-      const updateData = {
-        judul: req.body.judul,
-        isi: req.body.isi,
-        updated_at: new Date(),
-      };
-
-      if (req.file) {
-        if (pengumuman.file) {
-          const oldFilePath = path.join(
-            __dirname,
-            "../uploads/pengumuman",
-            pengumuman.file
-          );
-          if (fs.existsSync(oldFilePath)) {
-            fs.unlinkSync(oldFilePath);
-          }
-        }
-        updateData.file = req.file.filename;
-      }
-
-      await pengumuman.update(updateData);
-
-      return res.status(200).send({
-        message: "Pengumuman berhasil diupdate",
-        data: {
-          ...pengumuman.toJSON(),
-          file_url: getFileUrl(req, pengumuman.file),
-        },
-      });
-    } catch (err) {
-      return res
-        .status(500)
-        .send({ message: "Terjadi kesalahan", error: err.message });
-    }
-  }
-);
 
 // ================== DELETE (SOFT DELETE) ==================
 router.delete(

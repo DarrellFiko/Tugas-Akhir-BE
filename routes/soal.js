@@ -145,7 +145,7 @@ router.get(
       });
     }
   }
-);
+); 
 
 /* ================== NEW: GET RANDOM SOAL BY UJIAN (untuk siswa) ================== */
 router.get(
@@ -316,8 +316,11 @@ router.put(
 
       // === Validasi dan detect perubahan score ===
       let scoreChanged = false;
+      let jawabanChanged = false;
       let newScore = soal.score;
+      let newJawabanBenar = soal.jawaban_benar;
 
+      // Cek apakah score berubah
       if (req.body.score !== undefined) {
         const parsedScore = parseInt(req.body.score);
         if (isNaN(parsedScore) || parsedScore < 0 || parsedScore > 100) {
@@ -325,7 +328,6 @@ router.put(
             message: "Score harus berupa angka antara 0 - 100",
           });
         }
-
         if (parsedScore !== soal.score) {
           scoreChanged = true;
           newScore = parsedScore;
@@ -333,8 +335,17 @@ router.put(
         }
       }
 
+      // Cek apakah jawaban benar berubah
+      if (
+        req.body.jawaban_benar &&
+        req.body.jawaban_benar !== soal.jawaban_benar
+      ) {
+        jawabanChanged = true;
+        newJawabanBenar = req.body.jawaban_benar;
+      }
+
+      // === Upload file gambar baru ===
       if (req.file) {
-        // Hapus gambar lama
         if (soal.gambar) {
           const oldPath = path.join(__dirname, "../uploads/soal", soal.gambar);
           if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
@@ -342,28 +353,47 @@ router.put(
         updateData.gambar = req.file.filename;
       }
 
-      // Update soal di DB
+      // === Update soal di DB ===
       await soal.update(updateData);
 
-      // === Jika score berubah dan soal tipe PG, update JawabanUjian berdasarkan nilai sebelumnya ===
+      // === Jika score ATAU jawaban benar berubah ===
       if (
-        scoreChanged &&
+        (scoreChanged || jawabanChanged) &&
         (soal.jenis_soal === "pilihan_ganda_satu" ||
           soal.jenis_soal === "pilihan_ganda_banyak")
       ) {
-        // Ambil semua jawaban untuk soal ini
         const jawabanList = await JawabanUjian.findAll({
           where: { id_soal },
         });
 
         for (const j of jawabanList) {
-          // Ketentuanmu: jika jawaban sudah memiliki nilai != 0 -> dianggap benar,
-          // maka set ulang nilai ke score baru. Jika nilai === 0 -> tetap 0.
-          const prevNilai = parseInt(j.nilai) || 0;
-          const newNilai = prevNilai !== 0 ? newScore : 0;
+          let newNilai = 0;
 
-          // Update hanya jika berubah (opsional)
-          if (newNilai !== prevNilai) {
+          // Untuk PG satu jawaban => string comparison
+          if (soal.jenis_soal === "pilihan_ganda_satu") {
+            if (j.jawaban === newJawabanBenar) newNilai = newScore;
+          }
+
+          // Untuk PG banyak => bandingkan array
+          else if (soal.jenis_soal === "pilihan_ganda_banyak") {
+            try {
+              const jawabanUser = JSON.parse(j.jawaban || "[]");
+              const jawabanBenarArr = JSON.parse(newJawabanBenar || "[]");
+
+              const isEqual =
+                Array.isArray(jawabanUser) &&
+                jawabanUser.length === jawabanBenarArr.length &&
+                jawabanUser.every((val) => jawabanBenarArr.includes(val));
+
+              if (isEqual) newNilai = newScore;
+            } catch {
+              // jika parsing gagal, tetap nilai = 0
+              newNilai = 0;
+            }
+          }
+
+          // Update jika berubah
+          if (newNilai !== j.nilai) {
             await j.update({ nilai: newNilai });
           }
         }
@@ -378,12 +408,14 @@ router.put(
       });
     } catch (err) {
       console.error("Update soal error:", err);
-      return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
+      return res
+        .status(500)
+        .send({ message: "Terjadi kesalahan", error: err.message });
     }
   }
 );
 
-// ================== DELETE (Soft Delete) ==================
+// ================== DELETE (Hard Delete) ==================
 router.delete(
   "/:id_soal",
   authenticateToken,
@@ -391,17 +423,38 @@ router.delete(
   async (req, res) => {
     try {
       const { id_soal } = req.params;
+
+      // Cari soal
       const soal = await Soal.findByPk(id_soal);
 
-      if (!soal || soal.deleted_at) {
+      if (!soal) {
         return res.status(404).send({ message: "Soal tidak ditemukan" });
       }
 
-      await soal.update({ deleted_at: new Date() });
+      // Hapus semua jawaban ujian yang terkait
+      await JawabanUjian.destroy({
+        where: { id_soal },
+      });
 
-      return res.status(200).send({ message: "Soal berhasil dihapus (soft delete)" });
+      // Jika ada file gambar, hapus juga dari server
+      if (soal.gambar) {
+        const path = require("path");
+        const fs = require("fs");
+        const filePath = path.join(__dirname, "../uploads/soal", soal.gambar);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+
+      // Hapus soal dari database (hard delete)
+      await soal.destroy();
+
+      return res.status(200).send({
+        message: "Soal dan semua jawaban ujian terkait berhasil dihapus permanen",
+      });
     } catch (err) {
-      return res.status(500).send({ message: "Terjadi kesalahan", error: err.message });
+      console.error("Hard delete soal error:", err);
+      return res
+        .status(500)
+        .send({ message: "Terjadi kesalahan", error: err.message });
     }
   }
 );

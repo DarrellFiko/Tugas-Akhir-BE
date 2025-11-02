@@ -31,6 +31,21 @@ router.post(
         return res.status(400).send({ message: "Semua data wajib diisi" });
       }
 
+      const existing = await KelasSiswa.findOne({
+        where: {
+          id_tahun_ajaran,
+          id_siswa,
+          deleted_at: null, 
+        },
+      });
+
+      if (existing) {
+        return res.status(400).send({
+          message:
+            "Siswa sudah terdaftar di tahun ajaran tersebut.",
+        });
+      }
+
       const kelasSiswa = await KelasSiswa.create({
         id_kelas,
         id_tahun_ajaran,
@@ -43,9 +58,10 @@ router.post(
       });
     } catch (err) {
       console.error(err);
-      return res
-        .status(500)
-        .send({ message: "Terjadi kesalahan", error: err.message });
+      return res.status(500).send({
+        message: "Terjadi kesalahan",
+        error: err.message,
+      });
     }
   }
 );

@@ -215,6 +215,7 @@ router.put(
     try {
       const { id_user } = req.params;
 
+      // Validasi hak akses
       if (
         req.user.role !== "Admin" &&
         req.user.id_user.toString() !== id_user.toString()
@@ -224,6 +225,7 @@ router.put(
           .send({ message: "Tidak punya izin untuk update user ini" });
       }
 
+      // Cek apakah user ada dan belum dihapus
       const user = await User.findOne({
         where: { id_user, deleted_at: null },
       });
@@ -235,6 +237,7 @@ router.put(
 
       const updateData = { ...req.body };
 
+      // Validasi format input
       if (updateData.email && !isValidEmail(updateData.email)) {
         return res.status(400).send({ message: "Format email tidak valid" });
       }
@@ -243,16 +246,47 @@ router.put(
           .status(400)
           .send({ message: "Nomor telepon tidak valid (min. 8 digit angka)" });
       }
-      // if (updateData.telp_ortu && !isValidPhone(updateData.telp_ortu)) {
-      //   return res.status(400).send({
-      //     message: "Nomor telepon orang tua tidak valid (min. 8 digit angka)",
-      //   });
-      // }
 
+      // Enkripsi password jika diupdate
       if (updateData.password) {
         updateData.password = await bcrypt.hash(updateData.password, 10);
       }
 
+      // Validasi unik username
+      if (updateData.username) {
+        const existingUsername = await User.findOne({
+          where: {
+            username: updateData.username,
+            id_user: { [Op.ne]: id_user },
+            deleted_at: null, // hanya user aktif yang dicek
+          },
+        });
+
+        if (existingUsername) {
+          return res
+            .status(400)
+            .send({ message: "Username sudah digunakan oleh user lain" });
+        }
+      }
+
+      // Validasi unik email
+      if (updateData.email) {
+        const existingEmail = await User.findOne({
+          where: {
+            email: updateData.email,
+            id_user: { [Op.ne]: id_user },
+            deleted_at: null, // hanya user aktif yang dicek
+          },
+        });
+
+        if (existingEmail) {
+          return res
+            .status(400)
+            .send({ message: "Email sudah digunakan oleh user lain" });
+        }
+      }
+
+      // Upload foto profil jika ada
       if (req.file) {
         const profilePictureUrl = `${req.protocol}://${req.get(
           "host"
@@ -260,10 +294,12 @@ router.put(
         updateData.profile_picture = profilePictureUrl;
       }
 
+      // Simpan perubahan
       await user.update(updateData);
 
       return res.status(200).send({ message: "User berhasil diupdate" });
     } catch (err) {
+      console.error(err);
       return res
         .status(500)
         .send({ message: "Terjadi kesalahan", error: err.message });

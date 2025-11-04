@@ -134,7 +134,6 @@ router.put(
   }
 );
 
-// ========================== DELETE ==========================
 router.delete(
   "/:id_tahun_ajaran",
   authenticateToken,
@@ -146,9 +145,9 @@ router.delete(
       // Cek apakah tahun ajaran ada
       const tahunAjaran = await TahunAjaran.findByPk(id_tahun_ajaran);
       if (!tahunAjaran) {
-        return res
-          .status(404)
-          .send({ message: "Tahun ajaran tidak ditemukan" });
+        return res.status(404).send({
+          message: "Tahun ajaran tidak ditemukan",
+        });
       }
 
       // Ambil semua kelas_tahun_ajaran berdasarkan tahun ajaran ini
@@ -157,33 +156,38 @@ router.delete(
         attributes: ["id_kelas_tahun_ajaran"],
       });
 
-      // Hapus semua jadwal_pelajaran yang terkait dengan setiap kelas_tahun_ajaran
       const idKelasTahunAjaranList = kelasTahunAjaranList.map(
         (item) => item.id_kelas_tahun_ajaran
       );
 
       if (idKelasTahunAjaranList.length > 0) {
+        // Hapus pengumuman dulu (foreign key ke kelas_tahun_ajaran)
+        await Pengumuman.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // Hapus jadwal pelajaran
         await JadwalPelajaran.destroy({
           where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
         });
       }
 
-      // Hapus semua kelas_tahun_ajaran yang terkait dengan tahun ajaran ini
-      await KelasTahunAjaran.destroy({
-        where: { id_tahun_ajaran },
-      });
-
-      // Hapus semua kelas_siswa yang terkait dengan tahun ajaran ini
+      // Hapus kelas_siswa yang terkait dengan tahun ajaran ini
       await KelasSiswa.destroy({
         where: { id_tahun_ajaran },
       });
 
-      // Hapus tahun_ajaran itu sendiri
+      // Hapus kelas_tahun_ajaran
+      await KelasTahunAjaran.destroy({
+        where: { id_tahun_ajaran },
+      });
+
+      // Hapus tahun_ajaran
       await tahunAjaran.destroy();
 
       return res.status(200).send({
         message:
-          "Tahun ajaran dan semua data terkait (jadwal pelajaran, kelas tahun ajaran, kelas siswa) berhasil dihapus",
+          "Tahun ajaran dan semua data terkait berhasil dihapus (pengumuman, jadwal pelajaran, kelas tahun ajaran, kelas siswa)",
       });
     } catch (err) {
       return res.status(500).send({
@@ -193,6 +197,7 @@ router.delete(
     }
   }
 );
+
 
 
 module.exports = router;

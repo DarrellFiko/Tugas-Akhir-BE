@@ -80,6 +80,8 @@ KelasTahunAjaran.belongsTo(User, { as: "GuruPengampu", foreignKey: "guru_pengamp
 Pelajaran.hasMany(KelasTahunAjaran, { foreignKey: "id_pelajaran", as: "kelasTahunAjaranList" });
 KelasTahunAjaran.hasMany(KelasSiswa, { foreignKey: "id_kelas", sourceKey: "id_kelas", as: "SiswaKelas" });
 KelasSiswa.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas", targetKey: "id_kelas", as: "KelasTahunAjaranRef" });
+Pengumuman.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas_tahun_ajaran", as: "kelasTahunAjaran", onDelete: "CASCADE" });
+KelasTahunAjaran.hasMany(Pengumuman, { foreignKey: "id_kelas_tahun_ajaran", as: "pengumumanList", onDelete: "CASCADE" });
 
 // --- Jadwal Pelajaran ---
 JadwalPelajaran.belongsTo(KelasTahunAjaran, { foreignKey: "id_kelas_tahun_ajaran", as: "kelasTahunAjaran" });

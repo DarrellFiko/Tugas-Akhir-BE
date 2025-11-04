@@ -189,7 +189,7 @@ router.get("/:id_modul", authenticateToken, async (req, res) => {
       nama_siswa: p.siswa?.nama || null,
       email: p.siswa?.email || null,
       file_pengumpulan: p.file_pengumpulan,
-      created_at: p.created_at,
+      updated_at: p.updated_at,
     }));
 
     return res.status(200).send({

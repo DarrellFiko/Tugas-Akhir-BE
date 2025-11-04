@@ -4,6 +4,10 @@ const router = express.Router();
 const Pelajaran = require("../model/Pelajaran");
 const JadwalPelajaran = require("../model/JadwalPelajaran");
 const KelasTahunAjaran = require("../model/KelasTahunAjaran");
+const Modul = require("../model/Modul");
+const Pengumuman = require("../model/Pengumuman");
+const Materi = require("../model/Materi");
+const BeritaAcara = require("../model/BeritaAcara");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
 
 // ========================== CREATE ==========================
@@ -152,24 +156,45 @@ router.delete(
         (item) => item.id_kelas_tahun_ajaran
       );
 
-      // Hapus semua jadwal_pelajaran yang terkait
+      // Kalau ada relasi
       if (idKelasTahunAjaranList.length > 0) {
+        // Hapus pengumuman yang terkait
+        await Pengumuman.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // Hapus materi
+        await Materi.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // Hapus modul
+        await Modul.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // Hapus jadwal pelajaran
         await JadwalPelajaran.destroy({
           where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
         });
+
+        // Hapus berita acara (jika ada)
+        await BeritaAcara.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // Terakhir, hapus kelas_tahun_ajaran
+        await KelasTahunAjaran.destroy({
+          where: { id_pelajaran },
+        });
       }
 
-      // Hapus semua kelas_tahun_ajaran yang memakai pelajaran ini
-      await KelasTahunAjaran.destroy({
-        where: { id_pelajaran },
-      });
-
-      // Terakhir, hapus pelajaran itu sendiri
+      // 5️⃣ Hapus pelajaran itu sendiri
       await pelajaran.destroy();
 
       return res.status(200).send({
         message:
-          "Pelajaran dan semua data terkait (jadwal pelajaran & kelas tahun ajaran) berhasil dihapus",
+          "Pelajaran dan semua data terkait (pengumuman, materi, modul, ujian, nilai, jadwal pelajaran, kelas tahun ajaran) berhasil dihapus",
       });
     } catch (err) {
       return res.status(500).send({

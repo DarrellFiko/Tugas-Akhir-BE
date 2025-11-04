@@ -6,6 +6,9 @@ const User = require("../model/User");
 const JadwalPelajaran = require("../model/JadwalPelajaran");
 const KelasTahunAjaran = require("../model/KelasTahunAjaran");
 const KelasSiswa = require("../model/KelasSiswa");
+const Modul = require("../model/Modul");
+const Pengumuman = require("../model/Pengumuman");
+const Materi = require("../model/Materi");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
 
 // ========================== CREATE ==========================
@@ -178,35 +181,65 @@ router.delete(
         return res.status(404).send({ message: "Kelas tidak ditemukan" });
       }
 
-      // Cari semua kelas_tahun_ajaran yang terkait dengan kelas ini
+      // Ambil semua id_kelas_tahun_ajaran terkait
       const kelasTahunAjaranList = await KelasTahunAjaran.findAll({
         where: { id_kelas },
         attributes: ["id_kelas_tahun_ajaran"],
       });
 
-      // Hapus semua jadwal_pelajaran yang terkait dengan setiap kelas_tahun_ajaran
       const idKelasTahunAjaranList = kelasTahunAjaranList.map(
         (item) => item.id_kelas_tahun_ajaran
       );
 
+      // Kalau ada relasi ke kelas_tahun_ajaran
       if (idKelasTahunAjaranList.length > 0) {
+        // Hapus pengumuman
+        await Pengumuman.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // Hapus materi
+        await Materi.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // Hapus modul
+        await Modul.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // // Hapus nilai
+        // await Nilai.destroy({
+        //   where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        // });
+
+        // // Hapus ujian
+        // await Ujian.destroy({
+        //   where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        // });
+
+        // Hapus jadwal pelajaran
         await JadwalPelajaran.destroy({
           where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
         });
+
+        // Terakhir: hapus kelas_tahun_ajaran
+        await KelasTahunAjaran.destroy({
+          where: { id_kelas },
+        });
       }
 
-      // Hapus semua kelas_tahun_ajaran yang terkait dengan kelas ini
-      await KelasTahunAjaran.destroy({ where: { id_kelas } });
-
-      // Hapus semua kelas_siswa yang terkait dengan kelas ini
-      await KelasSiswa.destroy({ where: { id_kelas } });
+      // Hapus kelas_siswa yang terhubung dengan kelas ini
+      await KelasSiswa.destroy({
+        where: { id_kelas },
+      });
 
       // Hapus kelas itu sendiri
       await kelas.destroy();
 
       return res.status(200).send({
         message:
-          "Kelas dan semua data terkait (jadwal pelajaran, kelas tahun ajaran, kelas siswa) berhasil dihapus",
+          "Kelas dan semua data terkait (pengumuman, materi, modul, ujian, nilai, jadwal pelajaran, kelas tahun ajaran, kelas siswa) berhasil dihapus",
       });
     } catch (err) {
       return res.status(500).send({

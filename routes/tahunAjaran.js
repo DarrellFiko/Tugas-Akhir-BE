@@ -5,6 +5,8 @@ const TahunAjaran = require("../model/TahunAjaran");
 const JadwalPelajaran = require("../model/JadwalPelajaran");
 const KelasTahunAjaran = require("../model/KelasTahunAjaran");
 const KelasSiswa = require("../model/KelasSiswa");
+const Pengumuman = require("../model/Pengumuman");
+const Materi = require("../model/Materi");
 const { authenticateToken, authorizeRole } = require("../middleware/auth");
 
 // ========================== CREATE ==========================
@@ -134,6 +136,7 @@ router.put(
   }
 );
 
+// ========================== DELETE ==========================
 router.delete(
   "/:id_tahun_ajaran",
   authenticateToken,
@@ -160,9 +163,17 @@ router.delete(
         (item) => item.id_kelas_tahun_ajaran
       );
 
+      // Kalau ada kelas_tahun_ajaran yang terkait
       if (idKelasTahunAjaranList.length > 0) {
-        // Hapus pengumuman dulu (foreign key ke kelas_tahun_ajaran)
+        // ====== HAPUS DATA TURUNAN YANG PAKAI FK KE kelas_tahun_ajaran ======
+
+        // Hapus pengumuman
         await Pengumuman.destroy({
+          where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
+        });
+
+        // Hapus materi
+        await Materi.destroy({
           where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
         });
 
@@ -170,24 +181,31 @@ router.delete(
         await JadwalPelajaran.destroy({
           where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList },
         });
+
+        // (opsional) jika ada tabel lain yang bergantung ke kelas_tahun_ajaran, tambahkan di sini:
+        // await Ujian.destroy({ where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList } });
+        // await Nilai.destroy({ where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList } });
+        // await Tugas.destroy({ where: { id_kelas_tahun_ajaran: idKelasTahunAjaranList } });
       }
 
-      // Hapus kelas_siswa yang terkait dengan tahun ajaran ini
+      // ====== HAPUS DATA YANG PAKAI FK KE tahun_ajaran LANGSUNG ======
+
+      // Hapus kelas_siswa
       await KelasSiswa.destroy({
         where: { id_tahun_ajaran },
       });
 
-      // Hapus kelas_tahun_ajaran
+      // Setelah semua data turunan dihapus, hapus kelas_tahun_ajaran
       await KelasTahunAjaran.destroy({
         where: { id_tahun_ajaran },
       });
 
-      // Hapus tahun_ajaran
+      // Terakhir, hapus tahun ajaran itu sendiri
       await tahunAjaran.destroy();
 
       return res.status(200).send({
         message:
-          "Tahun ajaran dan semua data terkait berhasil dihapus (pengumuman, jadwal pelajaran, kelas tahun ajaran, kelas siswa)",
+          "Tahun ajaran dan semua data terkait berhasil dihapus (pengumuman, materi, jadwal pelajaran, kelas siswa, kelas tahun ajaran)",
       });
     } catch (err) {
       return res.status(500).send({
@@ -197,7 +215,5 @@ router.delete(
     }
   }
 );
-
-
 
 module.exports = router;

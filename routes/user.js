@@ -136,7 +136,7 @@ router.post(
       for (const u of users) {
         if (!u.nama || !u.username || !u.email || !u.password || !u.role) {
           return res.status(400).send({
-            message: `Field wajib kosong pada user dengan username: ${u.username}`,
+            message: `Field nama, username, email, password, dan role wajib diisi pada user dengan username: ${u.username}`,
           });
         }
         if (!isValidEmail(u.email)) {

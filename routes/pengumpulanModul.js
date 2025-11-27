@@ -242,6 +242,59 @@ router.get("/download/:id_pengumpulan_modul", authenticateToken, async (req, res
 });
 
 // ================== DOWNLOAD SEMUA PENGUMPULAN (ZIP) ==================
+// router.get(
+//   "/download-zip/:id_modul",
+//   authenticateToken,
+//   authorizeRole(["Guru", "Admin"]),
+//   async (req, res) => {
+//     try {
+//       const { id_modul } = req.params;
+
+//       const modul = await Modul.findByPk(id_modul);
+//       if (!modul || modul.deleted_at) {
+//         return res.status(404).send({ message: "Modul tidak ditemukan" });
+//       }
+
+//       // Ambil semua file pengumpulan berdasarkan id_modul
+//       const pengumpulanList = await PengumpulanModul.findAll({
+//         where: { id_modul, deleted_at: null },
+//         include: [{ model: User, as: "siswa", attributes: ["nama"] }],
+//       });
+
+//       if (pengumpulanList.length === 0) {
+//         return res.status(400).send({ message: "Belum ada pengumpulan untuk modul ini" });
+//       }
+
+//       // Siapkan response sebagai zip
+//       res.setHeader("Content-Disposition", `attachment; filename="modul_${id_modul}_pengumpulan.zip"`);
+//       res.setHeader("Content-Type", "application/zip");
+
+//       const archive = archiver("zip", { zlib: { level: 9 } });
+//       archive.pipe(res);
+
+//       pengumpulanList.forEach((item) => {
+//         if (item.file_pengumpulan) {
+//           const filePath = path.join(__dirname, "../uploads/pengumpulan_modul", item.file_pengumpulan);
+//           if (fs.existsSync(filePath)) {
+//             // Gunakan nama file siswa agar mudah dibedakan
+//             const safeName = item.siswa?.nama?.replace(/[^a-zA-Z0-9_\-]/g, "_") || `siswa_${item.id_siswa}`;
+//             archive.file(filePath, { name: `${safeName}_${item.file_pengumpulan}` });
+//           }
+//         }
+//       });
+
+//       archive.finalize();
+//     } catch (err) {
+//       console.error(err);
+//       return res.status(500).send({
+//         message: "Terjadi kesalahan saat membuat ZIP",
+//         error: err.message,
+//       });
+//     }
+//   }
+// );
+
+// ================== DOWNLOAD SEMUA PENGUMPULAN (ZIP) - OPTIMIZED ==================
 router.get(
   "/download-zip/:id_modul",
   authenticateToken,
@@ -252,46 +305,75 @@ router.get(
 
       const modul = await Modul.findByPk(id_modul);
       if (!modul || modul.deleted_at) {
-        return res.status(404).send({ message: "Modul tidak ditemukan" });
+        return res.status(404).json({ message: "Modul tidak ditemukan" });
       }
 
-      // Ambil semua file pengumpulan berdasarkan id_modul
       const pengumpulanList = await PengumpulanModul.findAll({
         where: { id_modul, deleted_at: null },
         include: [{ model: User, as: "siswa", attributes: ["nama"] }],
       });
 
       if (pengumpulanList.length === 0) {
-        return res.status(400).send({ message: "Belum ada pengumpulan untuk modul ini" });
+        return res.status(400).json({ message: "Belum ada pengumpulan untuk modul ini" });
       }
 
-      // Siapkan response sebagai zip
-      res.setHeader("Content-Disposition", `attachment; filename="modul_${id_modul}_pengumpulan.zip"`);
+      // Header ZIP
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="modul_${id_modul}_pengumpulan.zip"`
+      );
       res.setHeader("Content-Type", "application/zip");
 
-      const archive = archiver("zip", { zlib: { level: 9 } });
-      archive.pipe(res);
-
-      pengumpulanList.forEach((item) => {
-        if (item.file_pengumpulan) {
-          const filePath = path.join(__dirname, "../uploads/pengumpulan_modul", item.file_pengumpulan);
-          if (fs.existsSync(filePath)) {
-            // Gunakan nama file siswa agar mudah dibedakan
-            const safeName = item.siswa?.nama?.replace(/[^a-zA-Z0-9_\-]/g, "_") || `siswa_${item.id_siswa}`;
-            archive.file(filePath, { name: `${safeName}_${item.file_pengumpulan}` });
-          }
-        }
+      const archive = archiver("zip", {
+        zlib: { level: 9 },
+        highWaterMark: 1024 * 1024 * 4, // 4MB buffer (lebih cepat)
       });
 
+      archive.on("error", (err) => res.status(500).send({ message: err.message }));
+
+      archive.pipe(res);
+
+      // ========== OPTIMIZED FILE ATTACHING ==========
+
+      const fsPromises = fs.promises;
+
+      // Check file secara paralel agar lebih cepat
+      await Promise.all(
+        pengumpulanList.map(async (item) => {
+          if (!item.file_pengumpulan) return;
+
+          const filePath = path.join(
+            __dirname,
+            "../uploads/pengumpulan_modul",
+            item.file_pengumpulan
+          );
+
+          try {
+            await fsPromises.access(filePath); // async (lebih cepat)
+            const safeName =
+              item.siswa?.nama?.replace(/[^a-zA-Z0-9_\-]/g, "_") ||
+              `siswa_${item.id_siswa}`;
+
+            archive.file(filePath, {
+              name: `${safeName}_${item.file_pengumpulan}`,
+            });
+          } catch {
+            console.warn(`File tidak ditemukan: ${filePath}`);
+          }
+        })
+      );
+
+      // Finalize ZIP
       archive.finalize();
     } catch (err) {
       console.error(err);
-      return res.status(500).send({
+      res.status(500).json({
         message: "Terjadi kesalahan saat membuat ZIP",
         error: err.message,
       });
     }
   }
 );
+
 
 module.exports = router;

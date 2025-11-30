@@ -9,8 +9,8 @@ const { uploadMateri } = require("../middleware/multer");
 // Helper buat generate URL file
 const getFileUrl = (req, filename) => {
   if (!filename) return null;
-  return `https://${req.get("host")}/uploads/materi/${filename}`;
-  // return `${req.protocol}://${req.get("host")}/uploads/materi/${filename}`;
+  // return `https://${req.get("host")}/uploads/materi/${filename}`;
+  return `${req.protocol}://${req.get("host")}/uploads/materi/${filename}`;
 };
 
 // ================== CREATE ==================
@@ -115,9 +115,9 @@ router.put(
       }
 
       const updateData = {
-        nama: req.body.nama || materi.nama,
-        pertemuan: req.body.pertemuan || materi.pertemuan,
-        deskripsi: req.body.deskripsi || materi.deskripsi,
+        nama: req.body.nama_materi,
+        pertemuan: req.body.pertemuan,
+        deskripsi: req.body.deskripsi,
         updated_at: new Date(),
       };
 

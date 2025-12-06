@@ -125,19 +125,28 @@ const storageMateri = multer.diskStorage({
 });
 
 const fileFilterMateri = (req, file, cb) => {
-  const allowedTypes = /pdf|ppt|pptx|doc|docx|xls|xlsx|txt/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const allowedTypes =
+    /pdf|ppt|pptx|doc|docx|xls|xlsx|txt|jpg|jpeg|png|gif|mp4|mov|mkv|avi|webm|ogg/;
+
+  const extname = allowedTypes.test(
+    path.extname(file.originalname).toLowerCase()
+  );
+
   if (extname) {
     cb(null, true);
   } else {
-    cb(new Error("Hanya file dengan format pdf, ppt, word, excel, atau txt yang diperbolehkan!"));
+    cb(
+      new Error(
+        "Format file tidak diperbolehkan! Hanya pdf, ppt, doc, excel, txt, gambar, dan video yang diperbolehkan."
+      )
+    );
   }
 };
 
 const uploadMateri = multer({
   storage: storageMateri,
   fileFilter: fileFilterMateri,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB untuk video
 });
 
 // ===================== PENGUMPULAN MODUL UPLOAD =====================

@@ -22,7 +22,7 @@ const getFileUrl = (req, filename) => {
 router.post(
   "/",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Admin"),
   async (req, res) => {
     try {
       const { id_kelas, id_tahun_ajaran, id_siswa } = req.body;
@@ -66,8 +66,72 @@ router.post(
   }
 );
 
+// ================== EDIT ==================
+router.put(
+  "/:id_kelas_siswa",
+  authenticateToken,
+  authorizeRole("Admin"),
+  async (req, res) => {
+    try {
+      const { id_kelas_siswa } = req.params;
+      const { id_kelas, id_tahun_ajaran, id_siswa } = req.body;
+
+      // Validasi input
+      if (!id_kelas || !id_tahun_ajaran || !id_siswa) {
+        return res.status(400).send({ message: "Semua data wajib diisi" });
+      }
+
+      // Mencari data KelasSiswa berdasarkan ID
+      const kelasSiswa = await KelasSiswa.findByPk(id_kelas_siswa);
+
+      // Jika data tidak ditemukan
+      if (!kelasSiswa || kelasSiswa.deleted_at) {
+        return res.status(404).send({ message: "Data tidak ditemukan" });
+      }
+
+      const existing = await KelasSiswa.findOne({
+        where: {
+          id_tahun_ajaran,
+          id_siswa,
+          deleted_at: null, 
+        },
+      });
+
+      if (existing) {
+        return res.status(400).send({
+          message:
+            "Siswa sudah terdaftar di tahun ajaran tersebut.",
+        });
+      }
+
+      // Update data kelas siswa
+      await kelasSiswa.update({
+        id_kelas,
+        id_tahun_ajaran,
+        id_siswa,
+      });
+
+      return res.status(200).send({
+        message: "Data kelas siswa berhasil diperbarui",
+        data: {
+          id_kelas_siswa: kelasSiswa.id_kelas_siswa,
+          id_kelas: kelasSiswa.id_kelas,
+          id_tahun_ajaran: kelasSiswa.id_tahun_ajaran,
+          id_siswa: kelasSiswa.id_siswa,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).send({
+        message: "Terjadi kesalahan",
+        error: err.message,
+      });
+    }
+  }
+);
+
 // ================== GET ALL ==================
-router.get("/", authenticateToken, async (req, res) => {
+router.get("/", authenticateToken, authorizeRole("Admin"), async (req, res) => {
   try {
     const { id_kelas, id_tahun_ajaran } = req.query;
     const whereClause = { deleted_at: null };
@@ -215,7 +279,7 @@ router.get("/:id_kelas_siswa", authenticateToken, async (req, res) => {
 router.put(
   "/upload-rapor/:id_kelas_siswa/:tipe",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Admin"),
   uploadRapor.single("rapor"),
   async (req, res) => {
     try {
@@ -271,7 +335,7 @@ router.put(
 router.delete(
   "/:id_kelas_siswa",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Admin"),
   async (req, res) => {
     try {
       const kelasSiswa = await KelasSiswa.findByPk(req.params.id_kelas_siswa);
@@ -298,7 +362,7 @@ router.delete(
 router.delete(
   "/delete-rapor/:id_kelas_siswa/:tipe",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Admin"),
   async (req, res) => {
     try {
       const { id_kelas_siswa, tipe } = req.params;
@@ -343,6 +407,7 @@ router.delete(
 router.get(
   "/download-rapor-tahun-ajaran/:id_tahun_ajaran/:tipe",
   authenticateToken,
+  authorizeRole(["Siswa", "Admin"]),
   async (req, res) => {
     try {
       const { id_tahun_ajaran, tipe } = req.params;

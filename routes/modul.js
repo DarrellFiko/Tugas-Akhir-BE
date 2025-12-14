@@ -13,7 +13,7 @@ const { authenticateToken, authorizeRole } = require("../middleware/auth");
 router.post(
   "/",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     try {
       const {
@@ -212,7 +212,7 @@ router.get("/:id_modul", authenticateToken, async (req, res) => {
 router.put(
   "/:id_modul",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     try {
       const { id_modul } = req.params;
@@ -292,7 +292,7 @@ router.put(
 router.delete(
   "/:id_modul",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     try {
       const { id_modul } = req.params;

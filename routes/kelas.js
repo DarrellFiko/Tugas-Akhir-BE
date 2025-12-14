@@ -43,7 +43,7 @@ router.post(
 );
 
 // ========================== GET ALL ==========================
-router.get("/", authenticateToken, async (req, res) => {
+router.get("/", authenticateToken, authorizeRole("Admin"), async (req, res) => {
   try {
     const kelas = await Kelas.findAll({
       include: [

@@ -86,11 +86,6 @@ router.delete("/:id_komentar", authenticateToken, async (req, res) => {
       return res.status(404).send({ message: "Komentar tidak ditemukan" });
     }
 
-    // Validasi: hanya pemilik komentar yang bisa hapus
-    // if (komentarData.id_created_by !== id_created_by) {
-    //   return res.status(403).send({ message: "Anda tidak berhak menghapus komentar ini" });
-    // }
-
     await komentarData.update({
       deleted_at: new Date(),
     });

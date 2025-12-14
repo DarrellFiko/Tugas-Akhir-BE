@@ -28,7 +28,7 @@ router.post("/", authenticateToken, authorizeRole("Admin"), async (req, res) => 
 });
 
 // ================== GET ALL ==================
-router.get("/", authenticateToken, async (req, res) => {
+router.get("/", authenticateToken, authorizeRole("Admin"), async (req, res) => {
   try {
     const jadwalList = await JadwalPelajaran.findAll({
       include: [

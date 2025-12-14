@@ -17,7 +17,7 @@ const getFileUrl = (req, filename) => {
 router.post(
   "/",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   uploadMateri.single("file"),
   async (req, res) => {
     try {
@@ -103,7 +103,7 @@ router.get("/:id_materi", authenticateToken, async (req, res) => {
 router.put(
   "/:id_materi",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   uploadMateri.single("file"),
   async (req, res) => {
     try {
@@ -117,7 +117,7 @@ router.put(
       const updateData = {
         nama: req.body.nama_materi,
         pertemuan: req.body.pertemuan,
-        deskripsi: req.body.deskripsi,
+        deskripsi: req.body.deskripsi || null,
         updated_at: new Date(),
       };
 
@@ -151,7 +151,7 @@ router.put(
 router.delete(
   "/:id_materi",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     try {
       const { id_materi } = req.params;

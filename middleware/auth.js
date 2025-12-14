@@ -24,6 +24,30 @@ function authenticateToken(req, res, next) {
   });
 }
 
+function authenticateTokenOptional(req, res, next) {
+  const token = req.headers["authorization"]?.split(" ")[1];
+
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  if (tokenBlacklist.includes(token)) {
+    req.user = null;
+    return next();
+  }
+
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) {
+      req.user = null;
+      return next();
+    }
+
+    req.user = user;
+    next();
+  });
+}
+
 // ========================== MIDDLEWARE CEK ROLE ==========================
 function authorizeRole(roles) {
   return (req, res, next) => {
@@ -46,6 +70,7 @@ function addToBlacklist(token) {
 
 module.exports = {
   authenticateToken,
+  authenticateTokenOptional,
   authorizeRole,
   addToBlacklist,
   SECRET_KEY,

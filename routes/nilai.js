@@ -3,7 +3,7 @@ const router = express.Router();
 const Nilai = require("../model/Nilai");
 const User = require("../model/User");
 const KelasTahunAjaran = require("../model/KelasTahunAjaran");
-const { authenticateToken } = require("../middleware/auth");
+const { authenticateToken, authorizeRole } = require("../middleware/auth");
 const Modul = require("../model/Modul");
 const KelasSiswa = require("../model/KelasSiswa");
 const Pelajaran = require("../model/Pelajaran");
@@ -12,7 +12,7 @@ const Soal = require("../model/Soal");
 const JawabanUjian = require("../model/JawabanUjian");
 
 // ================== CREATE (Single or Multiple) ==================
-router.post("/", authenticateToken, async (req, res) => {
+router.post("/", authenticateToken, authorizeRole("Guru"), async (req, res) => {
   try {
     let data = req.body.data || req.body;
 
@@ -48,7 +48,7 @@ router.post("/", authenticateToken, async (req, res) => {
 });
 
 // ================== UPDATE (Single or Multiple) ==================
-router.put("/", authenticateToken, async (req, res) => {
+router.put("/", authenticateToken, authorizeRole("Guru"), async (req, res) => {
   try {
     let data = Array.isArray(req.body) ? req.body : [req.body];
 
@@ -281,7 +281,7 @@ router.get("/siswa/:id_tahun_ajaran", authenticateToken, async (req, res) => {
 
     // Ambil semua kelas siswa di tahun ajaran
     const kelasSiswaList = await KelasSiswa.findAll({
-      where: { id_siswa: id_user, id_tahun_ajaran },
+      where: { id_siswa: id_user, id_tahun_ajaran, deleted_at: null, },
       include: [
         {
           model: KelasTahunAjaran,
@@ -428,7 +428,7 @@ router.get("/:id_nilai", authenticateToken, async (req, res) => {
 });
 
 // ================== DELETE (Soft Delete) ==================
-router.delete("/:id_nilai", authenticateToken, async (req, res) => {
+router.delete("/:id_nilai", authenticateToken, authorizeRole("Guru"), async (req, res) => {
   try {
     const { id_nilai } = req.params;
     const nilai = await Nilai.findByPk(id_nilai);

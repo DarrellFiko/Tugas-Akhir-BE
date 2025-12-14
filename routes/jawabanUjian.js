@@ -142,11 +142,11 @@ router.post("/", authenticateToken, authorizeRole("Siswa"), async (req, res) => 
   }
 });
 
-// ================== GET ALL (hanya Guru/Admin) ==================
+// ================== GET ALL ==================
 router.get(
   "/",
   authenticateToken,
-  authorizeRole(["Guru", "Admin"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     try {
       const { id_soal } = req.query;
@@ -177,7 +177,7 @@ router.get(
   }
 );
 
-// ================== UPDATE NILAI (Guru saja) ==================
+// ================== UPDATE NILAI ==================
 router.put("/:id", authenticateToken, authorizeRole("Guru"), async (req, res) => {
   try {
     const { id } = req.params;

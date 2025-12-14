@@ -18,7 +18,7 @@ const getFileUrl = (req, filename) => {
 router.post(
   "/",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   uploadSoal.single("gambar"),
   async (req, res) => {
     try {
@@ -293,7 +293,7 @@ router.get("/:id_soal", authenticateToken, async (req, res) => {
 router.put(
   "/:id_soal",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   uploadSoal.single("gambar"),
   async (req, res) => {
     try {
@@ -419,7 +419,7 @@ router.put(
 router.delete(
   "/:id_soal",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     try {
       const { id_soal } = req.params;

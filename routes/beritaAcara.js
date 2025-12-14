@@ -13,7 +13,7 @@ const Pelajaran = require("../model/Pelajaran");
 router.post(
   "/",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -188,7 +188,7 @@ router.get("/:id_berita_acara", authenticateToken, async (req, res) => {
 router.put(
   "/:id_berita_acara",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -248,7 +248,7 @@ router.put(
 router.delete(
   "/:id_berita_acara",
   authenticateToken,
-  authorizeRole(["Admin", "Guru"]),
+  authorizeRole("Guru"),
   async (req, res) => {
     try {
       const { id_berita_acara } = req.params;

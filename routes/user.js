@@ -10,6 +10,7 @@ const User = require("../model/User");
 // Import middleware
 const {
   authenticateToken,
+  authenticateTokenOptional,
   authorizeRole,
   addToBlacklist,
 } = require("../middleware/auth");
@@ -389,6 +390,63 @@ router.post("/logout", (req, res) => {
     return res.status(200).send({ message: "Logout berhasil, token direset" });
   } catch (err) {
     return res.status(500).send({ message: "Terjadi kesalahan", error: err });
+  }
+});
+
+// ========================== GET ROLE USER (via Token) ==========================
+router.get("/role", authenticateTokenOptional, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(200).send({
+        message: "User belum login",
+        role: null,
+      });
+    }
+
+    const id_user = parseInt(req.user.id_user, 10);
+
+    const user = await User.findOne({
+      where: { id_user, deleted_at: null },
+      attributes: ["role"],
+    });
+
+    return res.status(200).send({
+      message: "Success",
+      role: user ? user.role.toLowerCase() : null,
+    });
+  } catch (err) {
+    return res.status(500).send({
+      message: "Terjadi kesalahan",
+      error: err.message,
+    });
+  }
+});
+
+// ========================== GET ID USER (via Token) ==========================
+router.get("/id", authenticateToken, async (req, res) => {
+  try {
+    const id_user = parseInt(req.user.id_user, 10);
+
+    const user = await User.findOne({
+      where: { id_user, deleted_at: null },
+      attributes: ["id_user"],
+    });
+
+    if (!user) {
+      return res.status(404).send({
+        message: "User tidak ditemukan atau sudah dihapus",
+      });
+    }
+
+    return res.status(200).send({
+      message: "Success",
+      id_user: user.id_user,
+    });
+  } catch (err) {
+    return res.status(500).send({
+      message: "Terjadi kesalahan",
+      error: err.message,
+    });
   }
 });
 

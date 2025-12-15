@@ -2,8 +2,6 @@ const jwt = require("jsonwebtoken");
 
 // Ambil SECRET_KEY dari .env (fallback ke default kalau belum diset)
 const SECRET_KEY = process.env.SECRET_KEY;
-
-// Blacklist token (sementara in-memory, bisa pakai Redis/DB kalau production)
 let tokenBlacklist = [];
 
 // ========================== MIDDLEWARE CEK TOKEN ==========================

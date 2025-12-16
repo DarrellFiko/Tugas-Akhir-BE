@@ -397,7 +397,7 @@ router.post("/logout", (req, res) => {
 router.get("/role", authenticateTokenOptional, async (req, res) => {
   try {
     if (!req.user) {
-      return res.status(200).send({
+      return res.status(401).send({
         message: "User belum login",
         role: null,
       });

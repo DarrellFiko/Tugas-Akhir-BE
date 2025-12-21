@@ -367,14 +367,21 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    return res.status(200).send({
-      message: "Login berhasil",
-      token,
-      nama: user.nama,
-      role: user.role,
-      profile_picture: user.profile_picture,
-      id_user: user.id_user
-    });
+    return res
+      .cookie("file_access", "1", {
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000
+      })
+      .status(200)
+      .send({
+        message: "Login berhasil",
+        token,
+        nama: user.nama,
+        role: user.role,
+        profile_picture: user.profile_picture,
+        id_user: user.id_user
+      });
   } catch (err) {
     return res.status(500).send({ message: "Terjadi kesalahan", error: err });
   }
@@ -385,7 +392,7 @@ router.post("/logout", (req, res) => {
   try {
     const token = req.headers["authorization"]?.split(" ")[1];
     if (!token) return res.status(400).send({ message: "Token tidak ditemukan" });
-
+    res.clearCookie("file_access");
     addToBlacklist(token);
     return res.status(200).send({ message: "Logout berhasil, token direset" });
   } catch (err) {

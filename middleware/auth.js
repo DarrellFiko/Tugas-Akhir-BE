@@ -66,10 +66,19 @@ function addToBlacklist(token) {
   tokenBlacklist.push(token);
 }
 
+// ========================== FILE ACCESS VIA COOKIE ==========================
+function authenticateFileAccess(req, res, next) {
+  if (!req.cookies || !req.cookies.file_access) {
+    return res.status(401).send("Unauthorized file access");
+  }
+  next();
+}
+
 module.exports = {
   authenticateToken,
   authenticateTokenOptional,
   authorizeRole,
   addToBlacklist,
+  authenticateFileAccess,
   SECRET_KEY,
 };

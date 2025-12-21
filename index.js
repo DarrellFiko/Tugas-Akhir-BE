@@ -3,11 +3,12 @@ require("dotenv").config(); // load .env
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const cookieParser = require("cookie-parser");
 const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: '*', // Allow all origins, or specify your frontend URL
+  origin: "https://eclass-carolus.site", // Allow all origins, or specify your frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -17,6 +18,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // const { multerErrorHandler } = require("./middleware/errorHandler");
 
@@ -58,6 +60,7 @@ const Nilai = require("./model/Nilai");
 const Ujian = require("./model/Ujian");
 const Soal = require("./model/Soal");
 const JawabanUjian = require("./model/JawabanUjian");
+const { authenticateToken, authenticateFileAccess } = require("./middleware/auth");
 
 // ================= RELATION =================
 
@@ -160,8 +163,8 @@ app.use("/api/soal", soalRoutes);
 app.use("/api/jawaban-ujian", jawabanUjianRoutes);
 
 // Static folder untuk upload file
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/uploads/pengumuman", express.static(path.join(__dirname, "uploads/pengumuman")));
+app.use("/uploads", authenticateFileAccess, express.static(path.join(__dirname, "uploads")));
+// app.use("/uploads/pengumuman", authenticateToken, express.static(path.join(__dirname, "uploads/pengumuman")));
 
 // Error handler
 // app.use(multerErrorHandler);
